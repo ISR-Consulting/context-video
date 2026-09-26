@@ -1,0 +1,15 @@
+{
+  "segmentId": "seg-01",
+  "content": {
+    "contentId": "vod-1",
+    "contentType": "VOD"
+  },
+  "window": {
+    "startMs": 0,
+    "endMs": 1
+  },
+  "sourceUri": "file://media/sample.mp4",
+  "metadata": {
+    "title": "sample"
+  }
+}

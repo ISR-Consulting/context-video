@@ -1,0 +1,27 @@
+{
+  "eventId": "ctx-1",
+  "schemaVersion": "1.0",
+  "content": {
+    "contentId": "vod-1",
+    "contentType": "VOD"
+  },
+  "window": {
+    "startMs": 0,
+    "endMs": 1
+  },
+  "context": {
+    "entities": [],
+    "topics": [],
+    "objects": [],
+    "brands": []
+  },
+  "confidence": 0,
+  "evidence": {
+    "audio": [],
+    "visual": []
+  },
+  "provenance": {
+    "pipelineVersion": "poc-v1"
+  },
+  "productId": "nope"
+}

@@ -1,0 +1,27 @@
+{
+  "observationId": "vis-01",
+  "content": {
+    "contentId": "live-xyz",
+    "contentType": "LIVE"
+  },
+  "window": {
+    "startMs": 0,
+    "endMs": 1
+  },
+  "frames": [
+    {
+      "timestampMs": 0,
+      "observations": [
+        {
+          "type": "OBJECT",
+          "value": "ball",
+          "confidence": 1
+        }
+      ]
+    }
+  ],
+  "provenance": {
+    "provider": "TBD",
+    "pipelineVersion": "poc-v1"
+  }
+}
