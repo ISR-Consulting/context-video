@@ -1,0 +1,18 @@
+experiment:
+  id: E05
+  name: multimodal-10s
+ingestion:
+  mode: LIVE_SIMULATION
+window:
+  size: 10s
+audio:
+  enabled: true
+  provider: TBD
+vision:
+  enabled: true
+  provider: TBD
+  sampling: TBD
+fusion:
+  provider: TBD
+schema:
+  context_event: v1

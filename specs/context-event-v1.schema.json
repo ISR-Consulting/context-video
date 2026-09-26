@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://context-video/specs/context-event-v1.schema.json",
+  "title": "ContextEventV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventId",
+    "schemaVersion",
+    "content",
+    "window",
+    "context",
+    "confidence",
+    "evidence",
+    "provenance"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "content": {
+      "$ref": "common.schema.json#/$defs/contentRef"
+    },
+    "window": {
+      "$ref": "common.schema.json#/$defs/timeWindow"
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entities",
+        "topics",
+        "objects",
+        "brands"
+      ],
+      "properties": {
+        "entities": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "value",
+              "confidence"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "minLength": 1
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            }
+          }
+        },
+        "topics": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/semanticValue"
+          }
+        },
+        "objects": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/semanticValue"
+          }
+        },
+        "brands": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/semanticValue"
+          }
+        }
+      }
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "audio",
+        "visual"
+      ],
+      "properties": {
+        "audio": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observationId",
+              "startMs",
+              "endMs",
+              "text"
+            ],
+            "properties": {
+              "observationId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "startMs": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "endMs": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "text": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "visual": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observationId",
+              "timestampMs",
+              "description"
+            ],
+            "properties": {
+              "observationId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "timestampMs": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pipelineVersion"
+      ],
+      "properties": {
+        "pipelineVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fusionProvider": {
+          "type": "string"
+        },
+        "fusionModel": {
+          "type": "string"
+        },
+        "promptVersion": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

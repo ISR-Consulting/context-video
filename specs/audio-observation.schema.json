@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://context-video/specs/audio-observation.schema.json",
+  "title": "AudioObservation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "observationId",
+    "content",
+    "window",
+    "transcript",
+    "provenance"
+  ],
+  "properties": {
+    "observationId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "content": {
+      "$ref": "common.schema.json#/$defs/contentRef"
+    },
+    "window": {
+      "$ref": "common.schema.json#/$defs/timeWindow"
+    },
+    "transcript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text"
+      ],
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "language": {
+          "type": "string"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "provenance": {
+      "$ref": "common.schema.json#/$defs/observationProvenance"
+    }
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "observationId": "vis-01",
+  "content": {
+    "contentId": "live-xyz",
+    "contentType": "LIVE"
+  },
+  "window": {
+    "startMs": 142000,
+    "endMs": 147000
+  },
+  "frames": [
+    {
+      "timestampMs": 144200,
+      "description": "Person wearing a green football jersey",
+      "observations": [
+        {
+          "type": "OBJECT",
+          "value": "football_jersey",
+          "confidence": 0.91
+        },
+        {
+          "type": "ENTITY",
+          "value": "Palmeiras",
+          "confidence": 0.87
+        }
+      ]
+    }
+  ],
+  "provenance": {
+    "provider": "TBD",
+    "model": "TBD",
+    "pipelineVersion": "poc-v1"
+  }
+}

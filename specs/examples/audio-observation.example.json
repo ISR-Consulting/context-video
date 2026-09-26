@@ -1,0 +1,21 @@
+{
+  "observationId": "aud-01",
+  "content": {
+    "contentId": "live-xyz",
+    "contentType": "LIVE"
+  },
+  "window": {
+    "startMs": 142000,
+    "endMs": 147000
+  },
+  "transcript": {
+    "text": "essa é a nova camisa do Palmeiras",
+    "language": "pt-BR",
+    "confidence": 0.96
+  },
+  "provenance": {
+    "provider": "TBD",
+    "model": "TBD",
+    "pipelineVersion": "poc-v1"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://context-video/specs/media-segment.schema.json",
+  "title": "MediaSegment",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "segmentId",
+    "content",
+    "window"
+  ],
+  "properties": {
+    "segmentId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "content": {
+      "$ref": "common.schema.json#/$defs/contentRef"
+    },
+    "window": {
+      "$ref": "common.schema.json#/$defs/timeWindow"
+    },
+    "sourceUri": {
+      "type": "string"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}

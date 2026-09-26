@@ -1,0 +1,16 @@
+experiment:
+  id: E01
+  name: audio-only-5s
+ingestion:
+  mode: LIVE_SIMULATION
+window:
+  size: 5s
+audio:
+  enabled: true
+  provider: TBD
+vision:
+  enabled: false
+fusion:
+  provider: TBD
+schema:
+  context_event: v1

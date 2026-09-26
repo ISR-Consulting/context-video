@@ -1,0 +1,62 @@
+{
+  "eventId": "ctx-983472",
+  "schemaVersion": "1.0",
+  "content": {
+    "contentId": "live-xyz",
+    "contentType": "LIVE"
+  },
+  "window": {
+    "startMs": 142000,
+    "endMs": 147000
+  },
+  "context": {
+    "entities": [
+      {
+        "type": "SPORTS_TEAM",
+        "value": "Palmeiras",
+        "confidence": 0.96
+      }
+    ],
+    "topics": [
+      {
+        "value": "football",
+        "confidence": 0.98
+      },
+      {
+        "value": "sports_apparel",
+        "confidence": 0.91
+      }
+    ],
+    "objects": [
+      {
+        "value": "football_jersey",
+        "confidence": 0.94
+      }
+    ],
+    "brands": []
+  },
+  "confidence": 0.94,
+  "evidence": {
+    "audio": [
+      {
+        "observationId": "aud-01",
+        "startMs": 142000,
+        "endMs": 147000,
+        "text": "essa é a nova camisa do Palmeiras"
+      }
+    ],
+    "visual": [
+      {
+        "observationId": "vis-01",
+        "timestampMs": 144200,
+        "description": "Palmeiras football jersey visible"
+      }
+    ]
+  },
+  "provenance": {
+    "pipelineVersion": "poc-v1",
+    "fusionProvider": "TBD",
+    "fusionModel": "TBD",
+    "promptVersion": "context-fusion-v1"
+  }
+}

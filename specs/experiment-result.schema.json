@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://context-video/specs/experiment-result.schema.json",
+  "title": "ExperimentResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "experimentId",
+    "startedAt",
+    "configuration",
+    "metrics"
+  ],
+  "properties": {
+    "experimentId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "configuration": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "latencyP50Ms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "latencyP95Ms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "latencyP99Ms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "costPerVideoHour": {
+          "type": "number",
+          "minimum": 0
+        },
+        "schemaCompliance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "evidenceTraceability": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "contextStability": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    }
+  }
+}
