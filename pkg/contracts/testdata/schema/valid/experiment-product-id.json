@@ -1,0 +1,10 @@
+{
+  "experimentId": "E01",
+  "startedAt": "2026-09-26T11:41:00Z",
+  "configuration": {
+    "nested": {
+      "sku": "ABC"
+    }
+  },
+  "metrics": {}
+}

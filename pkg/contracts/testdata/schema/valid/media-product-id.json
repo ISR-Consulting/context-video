@@ -1,0 +1,14 @@
+{
+  "segmentId": "seg-01",
+  "content": {
+    "contentId": "live-xyz",
+    "contentType": "LIVE"
+  },
+  "window": {
+    "startMs": 0,
+    "endMs": 1
+  },
+  "metadata": {
+    "productId": "p-1"
+  }
+}

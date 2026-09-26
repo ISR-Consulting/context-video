@@ -1,0 +1,16 @@
+{
+  "experimentId": "E04",
+  "startedAt": "2026-09-26T11:41:00Z",
+  "configuration": {
+    "window": "5s"
+  },
+  "metrics": {
+    "latencyP50Ms": 10,
+    "latencyP95Ms": 20,
+    "latencyP99Ms": 30,
+    "costPerVideoHour": 0,
+    "schemaCompliance": 1,
+    "evidenceTraceability": 1,
+    "contextStability": 0
+  }
+}

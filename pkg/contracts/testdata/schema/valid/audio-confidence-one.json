@@ -1,0 +1,19 @@
+{
+  "observationId": "aud-01",
+  "content": {
+    "contentId": "live-xyz",
+    "contentType": "LIVE"
+  },
+  "window": {
+    "startMs": 0,
+    "endMs": 1
+  },
+  "transcript": {
+    "text": "hello",
+    "confidence": 1
+  },
+  "provenance": {
+    "provider": "TBD",
+    "pipelineVersion": "poc-v1"
+  }
+}
