@@ -33,14 +33,42 @@ Audio and visual pipelines produce observations. Context Fusion converts tempora
 
 This POC is **architecture- and specification-driven**.
 
-Read in this order:
+Read in this order (the mandatory order defined in `AGENTS.md`, which also
+sets source-of-truth precedence and guardrails):
 
 1. `docs/poc/POC-SPEC.md`
 2. `docs/contracts/CONTRACTS-V1.md`
 3. `docs/adr/`
 4. `specs/`
-5. `AGENTS.md`
-6. `configs/experiments/`
+5. `configs/experiments/`
+6. existing tests for the area being changed
+
+## Evaluation harness
+
+The M03 harness loads an experiment configuration, validates a golden dataset
+through the M02 loader, runs a pipeline over every test case in manifest order,
+validates pipeline output against the M01 contracts and persists the canonical
+`ExperimentResult`:
+
+```bash
+go run ./cmd/harness \
+  --config configs/experiments/multimodal-5s.yaml \
+  --manifest manifests/<dataset-id>-v<dataset-version>.json \
+  --dataset-root dataset \
+  --specs-root specs \
+  --output results \
+  --pipeline validation-only
+```
+
+`--manifest` is relative to `--dataset-root`. The result is written to
+`<output>/<experiment-id>/<dataset-id>-v<dataset-version>.json`; an existing
+file is never overwritten, so move it or choose another `--output` to rerun.
+Generated results must not be committed.
+
+`validation-only` is currently the only pipeline. It emits no observations or
+ContextEvents and calls no provider: it is an infrastructure smoke run of
+configuration, dataset, orchestration and persistence, not an E01–E05 AI
+experiment. Unmeasured metrics are left absent.
 
 ## Language
 

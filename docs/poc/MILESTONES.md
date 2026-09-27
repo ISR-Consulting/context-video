@@ -59,9 +59,13 @@ Implement:
 - no AI provider call introduced.
 
 ## M02 — Golden Dataset model
+Status: complete.
+
 Define manifest and ground-truth loading/evaluation primitives.
 
 ## M03 — Evaluation Harness core
+Status: complete.
+
 Load experiment configuration, execute a pluggable pipeline and persist experiment results.
 
 ## M04 — Live Simulator
