@@ -29,7 +29,9 @@ The v1 schemas are:
 
 Ground truth groups labels into `required`, `optional`, and `forbidden` sets.
 It carries no model confidence. Optional alternatives require an
-`ambiguityNote`; matching and scoring policy belong to M03.
+`ambiguityNote`. Dataset loading is M02 and harness execution and result
+persistence are M03; matching and scoring policy are deferred to a later
+evaluation milestone.
 
 ## Media policy
 
