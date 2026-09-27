@@ -69,6 +69,8 @@ Status: complete.
 Load experiment configuration, execute a pluggable pipeline and persist experiment results.
 
 ## M04 — Live Simulator
+Status: complete.
+
 Replay approved VOD media according to media time and emit deterministic segments.
 
 ## M05 — Audio observation adapter
