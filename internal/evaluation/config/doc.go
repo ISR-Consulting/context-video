@@ -3,6 +3,8 @@
 // The YAML files under configs/experiments are decoded strictly into a typed
 // model: unknown fields, duplicate keys, trailing documents and type
 // mismatches are rejected. Semantic validation then produces an immutable
-// Config value. Provider values such as "TBD" are descriptive labels; this
-// package does not select or call providers.
+// Config value. This package does not select or call providers. Provider
+// values are labels recorded in the ExperimentResult configuration; the M05
+// audio pipeline additionally uses audio.provider as the name of the STT
+// adapter to run, and "TBD" names no adapter.
 package config
