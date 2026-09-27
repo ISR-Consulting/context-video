@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "1.0",
+  "testCaseId": "commercial",
+  "content": {
+    "contentId": "vod-commercial",
+    "contentType": "VOD"
+  },
+  "annotations": [
+    {
+      "annotationId": "commercial-0001",
+      "window": {
+        "startMs": 0,
+        "endMs": 1
+      },
+      "expected": {
+        "required": {
+          "topics": [
+            "shopping"
+          ],
+          "productId": "forbidden"
+        }
+      }
+    }
+  ]
+}

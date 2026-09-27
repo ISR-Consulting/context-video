@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "1.0",
+  "testCaseId": "visual-vod",
+  "content": {
+    "contentId": "vod-visual-001",
+    "contentType": "VOD"
+  },
+  "annotations": [
+    {
+      "annotationId": "visual-vod-0001",
+      "window": {
+        "startMs": 1000,
+        "endMs": 8000
+      },
+      "expected": {
+        "required": {
+          "objects": [
+            "forest"
+          ]
+        },
+        "optional": {
+          "topics": [
+            "nature"
+          ]
+        },
+        "forbidden": {
+          "objects": [
+            "city"
+          ]
+        }
+      },
+      "ambiguityNote": "The scene can support a broad nature topic."
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0",
+  "datasetId": "poc-golden",
+  "datasetVersion": "1.0",
+  "name": "POC Golden Dataset",
+  "description": "Provider-independent scenarios for Context Intelligence evaluation.",
+  "annotationGuidelinesVersion": "1.0",
+  "testCases": [
+    {
+      "testCaseId": "football-live",
+      "scenario": "FOOTBALL_SPORTS_APPAREL",
+      "content": {
+        "contentId": "live-football-001",
+        "contentType": "LIVE"
+      },
+      "media": {
+        "kind": "FIXTURE",
+        "uri": "media/football-live.fixture",
+        "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "durationMs": 10000
+      },
+      "groundTruthPath": "ground-truth/poc-golden/football-live.json",
+      "description": "A live football segment containing sports apparel context.",
+      "tags": [
+        "football",
+        "live"
+      ]
+    }
+  ]
+}

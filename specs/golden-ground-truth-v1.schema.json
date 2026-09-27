@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://context-video/specs/golden-ground-truth-v1.schema.json",
+  "title": "Golden Ground Truth v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "testCaseId",
+    "content",
+    "annotations"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "testCaseId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "content": {
+      "$ref": "common.schema.json#/$defs/contentRef"
+    },
+    "annotations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/annotation"
+      }
+    }
+  },
+  "$defs": {
+    "annotation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "annotationId",
+        "window",
+        "expected"
+      ],
+      "properties": {
+        "annotationId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "window": {
+          "$ref": "common.schema.json#/$defs/timeWindow"
+        },
+        "expected": {
+          "$ref": "#/$defs/expectedContext"
+        },
+        "ambiguityNote": {
+          "type": "string"
+        },
+        "annotatorNote": {
+          "type": "string"
+        }
+      }
+    },
+    "expectedContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required"
+      ],
+      "properties": {
+        "required": {
+          "$ref": "#/$defs/expectedSet"
+        },
+        "optional": {
+          "$ref": "#/$defs/expectedSet"
+        },
+        "forbidden": {
+          "$ref": "#/$defs/expectedSet"
+        }
+      }
+    },
+    "expectedSet": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "entities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/expectedEntity"
+          }
+        },
+        "topics": {
+          "$ref": "#/$defs/stringLabels"
+        },
+        "objects": {
+          "$ref": "#/$defs/stringLabels"
+        },
+        "brands": {
+          "$ref": "#/$defs/stringLabels"
+        }
+      }
+    },
+    "expectedEntity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "value"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "stringLabels": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}

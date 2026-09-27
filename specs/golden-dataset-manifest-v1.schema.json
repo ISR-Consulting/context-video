@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://context-video/specs/golden-dataset-manifest-v1.schema.json",
+  "title": "Golden Dataset Manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "datasetId",
+    "datasetVersion",
+    "name",
+    "annotationGuidelinesVersion",
+    "testCases"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "datasetId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "datasetVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "annotationGuidelinesVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "testCases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/testCase"
+      }
+    }
+  },
+  "$defs": {
+    "testCase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "testCaseId",
+        "scenario",
+        "content",
+        "media",
+        "groundTruthPath"
+      ],
+      "properties": {
+        "testCaseId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scenario": {
+          "type": "string",
+          "enum": [
+            "FOOTBALL_SPORTS_APPAREL",
+            "PREDOMINANTLY_VISUAL",
+            "PREDOMINANTLY_AUDITORY",
+            "MULTIMODAL_AMBIGUOUS"
+          ]
+        },
+        "content": {
+          "$ref": "common.schema.json#/$defs/contentRef"
+        },
+        "media": {
+          "$ref": "#/$defs/mediaReference"
+        },
+        "groundTruthPath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "mediaReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "uri",
+        "sha256",
+        "durationMs"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "LOCAL",
+            "FIXTURE",
+            "CONTROLLED_SOURCE"
+          ]
+        },
+        "uri": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "durationMs": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  }
+}
