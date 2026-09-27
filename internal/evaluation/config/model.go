@@ -5,8 +5,8 @@ import "time"
 // IngestionMode is the ingestion strategy selector declared by an experiment.
 type IngestionMode string
 
-// IngestionLiveSimulation selects Live-like replay. M03 accepts the selector
-// but does not implement replay.
+// IngestionLiveSimulation selects Live-like replay. The config package only
+// accepts the selector; replay is implemented by internal/media.
 const IngestionLiveSimulation IngestionMode = "LIVE_SIMULATION"
 
 // ContextEventSelectorV1 is the YAML selector for the frozen ContextEvent v1 contract.
