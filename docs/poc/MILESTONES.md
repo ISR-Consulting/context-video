@@ -14,6 +14,7 @@ Deliverables:
 - agent guardrails.
 
 ## M01 — Contract Types and Validation
+Status: complete.
 
 ### M01.1 — Domain model review
 Confirm:

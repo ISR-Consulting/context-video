@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "1.0",
+  "datasetId": "poc-golden",
+  "datasetVersion": "1.0",
+  "name": "POC Golden Dataset",
+  "annotationGuidelinesVersion": "1.0",
+  "testCases": [
+    {
+      "testCaseId": "football-live",
+      "scenario": "FOOTBALL_SPORTS_APPAREL",
+      "content": {
+        "contentId": "live-football-001",
+        "contentType": "LIVE"
+      },
+      "media": {
+        "kind": "FIXTURE",
+        "uri": "media/football-live.fixture",
+        "sha256": "2280bac55250100ddf2be870c19fccd0d56dff0577f7d77cbfa31148d7edc14f",
+        "durationMs": 10000
+      },
+      "groundTruthPath": "ground-truth/football-live.json"
+    },
+    {
+      "testCaseId": "visual-vod",
+      "scenario": "PREDOMINANTLY_VISUAL",
+      "content": {
+        "contentId": "vod-visual-001",
+        "contentType": "VOD"
+      },
+      "media": {
+        "kind": "CONTROLLED_SOURCE",
+        "uri": "controlled://approved/visual-vod-001",
+        "sha256": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+        "durationMs": 8000
+      },
+      "groundTruthPath": "ground-truth/visual-vod.json"
+    }
+  ]
+}

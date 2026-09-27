@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "1.0",
+  "testCaseId": "football-live",
+  "content": {
+    "contentId": "live-football-001",
+    "contentType": "LIVE"
+  },
+  "annotations": [
+    {
+      "annotationId": "football-live-0001",
+      "window": {
+        "startMs": 0,
+        "endMs": 5000
+      },
+      "expected": {
+        "required": {
+          "entities": [
+            {
+              "type": "SPORTS_TEAM",
+              "value": "Palmeiras"
+            }
+          ],
+          "topics": [
+            "football"
+          ],
+          "objects": [
+            "football_jersey"
+          ]
+        },
+        "optional": {
+          "topics": [
+            "sports_apparel"
+          ]
+        },
+        "forbidden": {
+          "objects": [
+            "basketball"
+          ]
+        }
+      },
+      "ambiguityNote": "Sports apparel may be implied without a clear spoken reference.",
+      "annotatorNote": "The team shirt is visible throughout the interval."
+    }
+  ]
+}

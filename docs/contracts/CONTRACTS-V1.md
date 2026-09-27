@@ -1,6 +1,6 @@
 # Contract Specification — v1
 
-**Status:** Baseline candidate for M01  
+**Status:** Accepted and frozen for POC v1 after M01
 **Purpose:** Define the semantic meaning of Context Video contracts before Go implementation.
 
 ## 1. Contract graph
