@@ -2,20 +2,25 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/ISR-Consulting/context-video/internal/audio"
 	"github.com/ISR-Consulting/context-video/internal/evaluation/config"
 	"github.com/ISR-Consulting/context-video/internal/evaluation/harness"
 )
 
 var (
-	configFile  = filepath.Join("..", "..", "configs", "experiments", "multimodal-5s.yaml")
-	datasetRoot = filepath.Join("..", "..", "internal", "evaluation", "dataset", "testdata", "valid")
-	specsRoot   = filepath.Join("..", "..", "specs")
+	configFile       = filepath.Join("..", "..", "configs", "experiments", "multimodal-5s.yaml")
+	audioOnlyConfig  = filepath.Join("..", "..", "configs", "experiments", "audio-only-5s.yaml")
+	visionOnlyConfig = filepath.Join("..", "..", "configs", "experiments", "vision-only-5s.yaml")
+	datasetRoot      = filepath.Join("..", "..", "internal", "evaluation", "dataset", "testdata", "valid")
+	specsRoot        = filepath.Join("..", "..", "specs")
 )
 
 const manifest = "manifests/poc-golden-v1.0.json"
@@ -79,6 +84,7 @@ func TestRunFailures(t *testing.T) {
 	if err := os.WriteFile(invalidConfig, []byte("experiment:\n  id: E99\n  unknown: true\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	whisperConfig := writeAudioConfig(t, "whisper-cpp")
 	cases := []struct {
 		name  string
 		args  func(output string) []string
@@ -104,7 +110,55 @@ func TestRunFailures(t *testing.T) {
 		{
 			name:  "unknown pipeline",
 			args:  func(output string) []string { return withFlag(baseArgs(output), "--pipeline", "gpt") },
-			usage: true, want: `unknown pipeline "gpt"; available: validation-only`,
+			usage: true, want: `unknown pipeline "gpt"; available: audio, validation-only`,
+		},
+		{
+			name: "audio option without audio pipeline",
+			args: func(output string) []string {
+				return append(baseArgs(output), "--audio-option", "model=m.bin")
+			},
+			usage: true, want: "--audio-option is only valid with --pipeline audio",
+		},
+		{
+			name: "malformed audio option",
+			args: func(output string) []string {
+				return append(withFlag(baseArgs(output), "--pipeline", "audio"), "--audio-option", "model")
+			},
+			usage: true, want: `want key=value, got "model"`,
+		},
+		{
+			name: "duplicate audio option",
+			args: func(output string) []string {
+				return append(withFlag(baseArgs(output), "--pipeline", "audio"),
+					"--audio-option", "model=a", "--audio-option", "model=b")
+			},
+			usage: true, want: `duplicate option "model"`,
+		},
+		{
+			name: "audio pipeline with TBD provider",
+			args: func(output string) []string {
+				return withFlag(withFlag(baseArgs(output), "--pipeline", "audio"), "--config", audioOnlyConfig)
+			},
+			check: func(t *testing.T, err error) {
+				if !errors.Is(err, audio.ErrUnknownProvider) {
+					t.Fatalf("expected unknown provider: %v", err)
+				}
+			},
+			want: `unknown audio provider "TBD"; available: whisper-cpp`,
+		},
+		{
+			name: "audio pipeline with audio disabled",
+			args: func(output string) []string {
+				return withFlag(withFlag(baseArgs(output), "--pipeline", "audio"), "--config", visionOnlyConfig)
+			},
+			want: `pipeline "audio" requires audio.enabled: true in experiment E02`,
+		},
+		{
+			name: "whisper-cpp without model",
+			args: func(output string) []string {
+				return withFlag(withFlag(baseArgs(output), "--pipeline", "audio"), "--config", whisperConfig)
+			},
+			want: `audio provider "whisper-cpp": option "model"`,
 		},
 		{
 			name: "invalid config",
@@ -166,6 +220,105 @@ func TestRunFailures(t *testing.T) {
 				t.Fatalf("output written on failure: %v", statErr)
 			}
 		})
+	}
+}
+
+// writeAudioConfig writes the committed audio-only E01 configuration with
+// audio.provider replaced, keeping the YAML shape unchanged.
+func writeAudioConfig(t *testing.T, provider string) string {
+	t.Helper()
+	data, err := os.ReadFile(audioOnlyConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "provider: TBD\nvision") {
+		t.Fatalf("unexpected E01 config layout:\n%s", data)
+	}
+	path := filepath.Join(t.TempDir(), "e01.yaml")
+	patched := strings.Replace(string(data), "provider: TBD\nvision", "provider: "+provider+"\nvision", 1)
+	if err := os.WriteFile(path, []byte(patched), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// fakeRegistry registers a "fake" provider that records its options and the
+// requests it receives.
+func fakeRegistry(t *testing.T, opts *audio.Options, requests *[]audio.Request, fail error) *audio.Registry {
+	t.Helper()
+	r := audio.NewRegistry()
+	err := r.Register("fake", func(o audio.Options) (audio.Transcriber, error) {
+		*opts = o
+		return audio.TranscriberFunc(func(_ context.Context, req audio.Request) (audio.Transcription, error) {
+			*requests = append(*requests, req)
+			if fail != nil && req.Source.Kind == audio.SourceControlledSource {
+				return audio.Transcription{}, fail
+			}
+			return audio.Transcription{Text: "fala", Language: "pt", Provider: "fake"}, nil
+		}), nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return r
+}
+
+func TestRunAudioPipelineWithFakeProvider(t *testing.T) {
+	output := filepath.Join(t.TempDir(), "results")
+	args := withFlag(withFlag(baseArgs(output), "--pipeline", "audio"), "--config", writeAudioConfig(t, "fake"))
+	args = append(args, "--audio-option", "model=/models/m.bin", "--audio-option", "language=pt")
+	var opts audio.Options
+	var requests []audio.Request
+	var stdout, stderr bytes.Buffer
+	if err := runWith(args, &stdout, &stderr, fakeRegistry(t, &opts, &requests, nil)); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(opts, audio.Options{"model": "/models/m.bin", "language": "pt"}) {
+		t.Fatalf("options: %v", opts)
+	}
+	if len(requests) != 4 {
+		t.Fatalf("requests: %d", len(requests))
+	}
+	if want := filepath.Join(datasetRoot, "media", "football-live.fixture"); requests[0].Source.Path != want {
+		t.Fatalf("media path %q want %q", requests[0].Source.Path, want)
+	}
+	data, err := os.ReadFile(filepath.Join(output, "E01", "poc-golden-v1.0.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"provider": "fake"`) || !strings.Contains(string(data), `"metrics": {}`) {
+		t.Fatalf("result:\n%s", data)
+	}
+	for _, want := range []string{
+		"pipeline: audio",
+		"test cases processed: 2",
+		"outputs: audio observations=4 visual observations=0 context events=0",
+	} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Errorf("stdout missing %q:\n%s", want, stdout.String())
+		}
+	}
+}
+
+func TestRunAudioPipelineFailureWritesNothing(t *testing.T) {
+	output := filepath.Join(t.TempDir(), "results")
+	args := withFlag(withFlag(baseArgs(output), "--pipeline", "audio"), "--config", writeAudioConfig(t, "fake"))
+	var opts audio.Options
+	var requests []audio.Request
+	var stdout, stderr bytes.Buffer
+	err := runWith(args, &stdout, &stderr, fakeRegistry(t, &opts, &requests, audio.ErrUnsupportedSource))
+	var harnessErr *harness.Error
+	if !errors.As(err, &harnessErr) || harnessErr.Stage != harness.StagePipeline || harnessErr.TestCaseID != "visual-vod" {
+		t.Fatalf("err: %v", err)
+	}
+	if !errors.Is(err, audio.ErrUnsupportedSource) {
+		t.Fatalf("cause lost: %v", err)
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("stdout: %s", stdout.String())
+	}
+	if _, statErr := os.Stat(output); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("output written on failure: %v", statErr)
 	}
 }
 

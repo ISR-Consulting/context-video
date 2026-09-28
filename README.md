@@ -65,10 +65,78 @@ go run ./cmd/harness \
 file is never overwritten, so move it or choose another `--output` to rerun.
 Generated results must not be committed.
 
-`validation-only` is currently the only pipeline. It emits no observations or
-ContextEvents and calls no provider: it is an infrastructure smoke run of
-configuration, dataset, orchestration and persistence, not an E01–E05 AI
-experiment. Unmeasured metrics are left absent.
+`--pipeline` selects one of:
+
+- `validation-only` (default) emits no observations or ContextEvents and calls
+  no provider: it is an infrastructure smoke run of configuration, dataset,
+  orchestration and persistence, not an E01–E05 AI experiment.
+- `audio` (M05) cuts every test case into the M04 `MediaSegment` windows and
+  transcribes each window with the STT adapter named by the config's
+  `audio.provider`, emitting one `AudioObservation` per window and no
+  ContextEvents. It needs an audio-only configuration (`vision.enabled: false`).
+
+Unmeasured metrics are left absent in both.
+
+## Audio observations
+
+`internal/audio` is the vendor-neutral STT port: a `Transcriber` receives a
+segment window plus an audio source and returns a provider-neutral
+transcription that is mapped onto `AudioObservation`. Observation IDs are
+`aud:<segmentId>`. Transcript `confidence` is set only when the provider
+supplies one, and provenance records provider, model and `pipelineVersion`
+(`poc-v1`). Adapters are registered by name in `internal/audio/providers`; the
+harness selects one through `audio.provider` and passes adapter settings
+opaquely with repeatable `--audio-option key=value` flags.
+
+The committed configurations keep `audio.provider: TBD`, which is not a
+registered adapter, so `--pipeline audio` refuses to run them. Use a copy with
+the provider you want.
+
+### whisper.cpp (`whisper-cpp`)
+
+The first adapter runs a local whisper.cpp install. For each window, ffmpeg
+(file protocol only) extracts 16 kHz mono WAV and `whisper-cli` transcribes it
+to JSON; nothing touches the network. whisper-cli reports no utterance
+confidence, so none is emitted. `CONTROLLED_SOURCE` media is rejected with a
+clear error; `LOCAL`/`FIXTURE` media is read from `--dataset-root`.
+
+| Option | Default | Meaning |
+|---|---|---|
+| `model` | required | path to a ggml model file |
+| `binary` | `whisper-cli` on `PATH` | whisper.cpp CLI |
+| `ffmpeg` | `ffmpeg` on `PATH` | extraction tool |
+| `language` | `auto` | whisper `-l`, e.g. `pt` |
+| `threads` | whisper default | whisper `-t` |
+
+On macOS with Homebrew:
+
+```bash
+brew install whisper-cpp ffmpeg
+# download a model, e.g. ggml-large-v3-turbo.bin, into ~/models
+sed '/^audio:/,/^vision:/ s/provider: TBD/provider: whisper-cpp/' \
+  configs/experiments/audio-only-5s.yaml > /tmp/e01-whisper.yaml
+go run ./cmd/harness \
+  --config /tmp/e01-whisper.yaml \
+  --manifest manifests/<dataset-id>-v<dataset-version>.json \
+  --dataset-root dataset \
+  --output /tmp/results \
+  --pipeline audio \
+  --audio-option model="$HOME/models/ggml-large-v3-turbo.bin" \
+  --audio-option language=pt
+```
+
+The `sed` rewrites only `audio.provider`. The dataset must reference approved
+`LOCAL` media. Offline tests use fakes; an
+opt-in integration test runs the real tools:
+
+```bash
+CONTEXT_VIDEO_WHISPER_MODEL=$HOME/models/ggml-large-v3-turbo.bin \
+CONTEXT_VIDEO_WHISPER_LANGUAGE=pt \
+go test -tags integration -run Integration -v ./internal/audio/whispercpp
+```
+
+Set `CONTEXT_VIDEO_WHISPER_AUDIO` to a local speech file to transcribe real
+speech instead of generated silence.
 
 ## Live simulator
 

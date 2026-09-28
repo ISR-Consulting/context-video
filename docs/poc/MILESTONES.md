@@ -74,6 +74,8 @@ Status: complete.
 Replay approved VOD media according to media time and emit deterministic segments.
 
 ## M05 — Audio observation adapter
+Status: complete.
+
 Integrate selected STT provider behind an interface.
 
 ## M06 — Visual observation adapter
