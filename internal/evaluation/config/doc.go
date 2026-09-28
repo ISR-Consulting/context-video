@@ -6,5 +6,7 @@
 // Config value. This package does not select or call providers. Provider
 // values are labels recorded in the ExperimentResult configuration; the M05
 // audio pipeline additionally uses audio.provider as the name of the STT
-// adapter to run, and "TBD" names no adapter.
+// adapter to run, and the M06 vision pipeline uses vision.provider as the name
+// of the visual adapter and parses vision.sampling as its frame sampling
+// policy ("uniform:N"). "TBD" names no adapter and no policy.
 package config

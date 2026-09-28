@@ -19,21 +19,37 @@ import (
 	"github.com/ISR-Consulting/context-video/internal/evaluation/config"
 	"github.com/ISR-Consulting/context-video/internal/evaluation/harness"
 	"github.com/ISR-Consulting/context-video/internal/pipeline"
+	"github.com/ISR-Consulting/context-video/internal/vision"
+	visionproviders "github.com/ISR-Consulting/context-video/internal/vision/providers"
 	"github.com/ISR-Consulting/context-video/pkg/contracts"
 )
 
 const (
 	validationOnly = "validation-only"
 	audioPipeline  = "audio"
+	visionPipeline = "vision"
 )
 
 func pipelineNames() []string {
-	return []string{audioPipeline, validationOnly}
+	return []string{audioPipeline, validationOnly, visionPipeline}
 }
 
-// newPipeline builds the pipeline selected by --pipeline. The audio pipeline
-// resolves cfg.Audio.Provider through registry and never names a vendor.
-func newPipeline(name string, cfg config.Config, registry *audio.Registry, audioOpts audio.Options, datasetRoot string) (harness.Pipeline, error) {
+// registries holds the provider registries the harness selects adapters from.
+type registries struct {
+	audio  *audio.Registry
+	vision *vision.Registry
+}
+
+// pipelineOptions are the opaque adapter options collected from the CLI.
+type pipelineOptions struct {
+	audio  audio.Options
+	vision vision.Options
+}
+
+// newPipeline builds the pipeline selected by --pipeline. The audio and vision
+// pipelines resolve cfg.Audio.Provider and cfg.Vision.Provider through the
+// registries and never name a vendor.
+func newPipeline(name string, cfg config.Config, regs registries, opts pipelineOptions, datasetRoot string) (harness.Pipeline, error) {
 	switch name {
 	case validationOnly:
 		return harness.ValidationOnlyPipeline{}, nil
@@ -41,7 +57,7 @@ func newPipeline(name string, cfg config.Config, registry *audio.Registry, audio
 		if !cfg.Audio.Enabled {
 			return nil, fmt.Errorf("pipeline %q requires audio.enabled: true in experiment %s", name, cfg.ExperimentID)
 		}
-		transcriber, err := registry.New(cfg.Audio.Provider, audioOpts)
+		transcriber, err := regs.audio.New(cfg.Audio.Provider, opts.audio)
 		if err != nil {
 			return nil, err
 		}
@@ -50,13 +66,29 @@ func newPipeline(name string, cfg config.Config, registry *audio.Registry, audio
 			return nil, err
 		}
 		return audioOnly, nil
+	case visionPipeline:
+		if !cfg.Vision.Enabled {
+			return nil, fmt.Errorf("pipeline %q requires vision.enabled: true in experiment %s", name, cfg.ExperimentID)
+		}
+		if _, err := vision.ParseSampling(cfg.Vision.Sampling); err != nil {
+			return nil, fmt.Errorf("experiment %s vision.sampling: %w", cfg.ExperimentID, err)
+		}
+		analyzer, err := regs.vision.New(cfg.Vision.Provider, opts.vision)
+		if err != nil {
+			return nil, err
+		}
+		visionOnly, err := pipeline.NewVision(cfg.Vision.Provider, analyzer, pipeline.VisionDirResolver(datasetRoot))
+		if err != nil {
+			return nil, err
+		}
+		return visionOnly, nil
 	default:
 		return nil, usageError{fmt.Sprintf("unknown pipeline %q; available: %s", name, strings.Join(pipelineNames(), ", "))}
 	}
 }
 
 // optionFlags collects repeatable key=value flags.
-type optionFlags audio.Options
+type optionFlags map[string]string
 
 func (o optionFlags) String() string { return "" }
 
@@ -88,10 +120,10 @@ func main() {
 }
 
 func run(args []string, stdout, stderr io.Writer) error {
-	return runWith(args, stdout, stderr, providers.Default())
+	return runWith(args, stdout, stderr, registries{audio: providers.Default(), vision: visionproviders.Default()})
 }
 
-func runWith(args []string, stdout, stderr io.Writer, registry *audio.Registry) error {
+func runWith(args []string, stdout, stderr io.Writer, regs registries) error {
 	flags := flag.NewFlagSet("harness", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	configPath := flags.String("config", "", "experiment YAML file (required)")
@@ -103,6 +135,9 @@ func runWith(args []string, stdout, stderr io.Writer, registry *audio.Registry) 
 	audioOpts := audio.Options{}
 	flags.Var(optionFlags(audioOpts), "audio-option",
 		"audio provider option key=value, repeatable (audio pipeline only; keys depend on audio.provider)")
+	visionOpts := vision.Options{}
+	flags.Var(optionFlags(visionOpts), "vision-option",
+		"vision provider option key=value, repeatable (vision pipeline only; keys depend on vision.provider)")
 	if err := flags.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			flags.SetOutput(stderr)
@@ -132,6 +167,9 @@ func runWith(args []string, stdout, stderr io.Writer, registry *audio.Registry) 
 	if len(audioOpts) > 0 && *pipelineName != audioPipeline {
 		return usageError{fmt.Sprintf("--audio-option is only valid with --pipeline %s", audioPipeline)}
 	}
+	if len(visionOpts) > 0 && *pipelineName != visionPipeline {
+		return usageError{fmt.Sprintf("--vision-option is only valid with --pipeline %s", visionPipeline)}
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
@@ -140,7 +178,7 @@ func runWith(args []string, stdout, stderr io.Writer, registry *audio.Registry) 
 	if err != nil {
 		return err
 	}
-	selected, err := newPipeline(*pipelineName, cfg, registry, audioOpts, *datasetRoot)
+	selected, err := newPipeline(*pipelineName, cfg, regs, pipelineOptions{audio: audioOpts, vision: visionOpts}, *datasetRoot)
 	if err != nil {
 		return err
 	}

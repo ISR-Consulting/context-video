@@ -110,7 +110,7 @@ func TestRunFailures(t *testing.T) {
 		{
 			name:  "unknown pipeline",
 			args:  func(output string) []string { return withFlag(baseArgs(output), "--pipeline", "gpt") },
-			usage: true, want: `unknown pipeline "gpt"; available: audio, validation-only`,
+			usage: true, want: `unknown pipeline "gpt"; available: audio, validation-only, vision`,
 		},
 		{
 			name: "audio option without audio pipeline",
@@ -270,7 +270,7 @@ func TestRunAudioPipelineWithFakeProvider(t *testing.T) {
 	var opts audio.Options
 	var requests []audio.Request
 	var stdout, stderr bytes.Buffer
-	if err := runWith(args, &stdout, &stderr, fakeRegistry(t, &opts, &requests, nil)); err != nil {
+	if err := runWith(args, &stdout, &stderr, registries{audio: fakeRegistry(t, &opts, &requests, nil)}); err != nil {
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(opts, audio.Options{"model": "/models/m.bin", "language": "pt"}) {
@@ -306,7 +306,7 @@ func TestRunAudioPipelineFailureWritesNothing(t *testing.T) {
 	var opts audio.Options
 	var requests []audio.Request
 	var stdout, stderr bytes.Buffer
-	err := runWith(args, &stdout, &stderr, fakeRegistry(t, &opts, &requests, audio.ErrUnsupportedSource))
+	err := runWith(args, &stdout, &stderr, registries{audio: fakeRegistry(t, &opts, &requests, audio.ErrUnsupportedSource)})
 	var harnessErr *harness.Error
 	if !errors.As(err, &harnessErr) || harnessErr.Stage != harness.StagePipeline || harnessErr.TestCaseID != "visual-vod" {
 		t.Fatalf("err: %v", err)
