@@ -79,6 +79,8 @@ Status: complete.
 Integrate selected STT provider behind an interface.
 
 ## M06 — Visual observation adapter
+Status: complete.
+
 Implement frame sampling/scene selection and selected visual provider behind an interface.
 
 ## M07 — Context Fusion
