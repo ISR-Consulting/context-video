@@ -49,7 +49,7 @@ func TestEncodeResultIsCanonicalAndSchemaValid(t *testing.T) {
       "name": "multimodal-5s"
     },
     "fusion": {
-      "provider": "TBD"
+      "provider": "llama-cpp"
     },
     "ingestion": {
       "mode": "LIVE_SIMULATION"
