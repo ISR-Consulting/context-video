@@ -9,18 +9,24 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/ISR-Consulting/context-video/internal/audio"
 	"github.com/ISR-Consulting/context-video/internal/audio/providers"
 	contextcore "github.com/ISR-Consulting/context-video/internal/context"
 	contextproviders "github.com/ISR-Consulting/context-video/internal/context/providers"
+	"github.com/ISR-Consulting/context-video/internal/evaluation/artifacts"
 	"github.com/ISR-Consulting/context-video/internal/evaluation/config"
 	"github.com/ISR-Consulting/context-video/internal/evaluation/harness"
+	"github.com/ISR-Consulting/context-video/internal/media"
 	"github.com/ISR-Consulting/context-video/internal/pipeline"
+	"github.com/ISR-Consulting/context-video/internal/telemetry"
 	"github.com/ISR-Consulting/context-video/internal/vision"
 	visionproviders "github.com/ISR-Consulting/context-video/internal/vision/providers"
 	"github.com/ISR-Consulting/context-video/pkg/contracts"
@@ -49,7 +55,18 @@ type pipelineOptions struct {
 	audio   audio.Options
 	vision  vision.Options
 	context contextcore.Options
+	// recorder, set for the multimodal pipeline, paces segments and times
+	// every port call; recordErrors keeps the run going past failed segments.
+	recorder     *telemetry.Recorder
+	recordErrors bool
 }
+
+const (
+	pacingInstant = telemetry.PacingInstant
+	pacingLive    = telemetry.PacingLive
+	errorsFail    = "fail"
+	errorsRecord  = "record"
+)
 
 // newPipeline builds the pipeline selected by --pipeline. The audio, vision
 // and multimodal pipelines resolve cfg.Audio.Provider, cfg.Vision.Provider and
@@ -113,6 +130,10 @@ func newMultimodal(cfg config.Config, regs registries, opts pipelineOptions, dat
 	if err != nil {
 		return nil, err
 	}
+	rec := opts.recorder
+	if rec != nil {
+		reasoner = rec.Reasoner(reasoner)
+	}
 	engine, err := contextcore.NewEngine(cfg.FusionProvider, reasoner)
 	if err != nil {
 		return nil, err
@@ -123,6 +144,9 @@ func newMultimodal(cfg config.Config, regs registries, opts pipelineOptions, dat
 		if err != nil {
 			return nil, err
 		}
+		if rec != nil {
+			transcriber = rec.Transcriber(transcriber)
+		}
 		mm.AudioProvider, mm.Transcriber, mm.AudioResolve = cfg.Audio.Provider, transcriber, pipeline.DirResolver(datasetRoot)
 	}
 	if cfg.Vision.Enabled {
@@ -130,9 +154,19 @@ func newMultimodal(cfg config.Config, regs registries, opts pipelineOptions, dat
 		if err != nil {
 			return nil, err
 		}
+		if rec != nil {
+			analyzer = rec.Analyzer(analyzer)
+		}
 		mm.VisionProvider, mm.Analyzer, mm.VisionResolve = cfg.Vision.Provider, analyzer, pipeline.VisionDirResolver(datasetRoot)
 	}
-	return pipeline.NewMultimodal(mm)
+	var mmOpts []pipeline.MultimodalOption
+	if rec != nil {
+		mmOpts = append(mmOpts, pipeline.WithSegmentObserver(rec))
+	}
+	if opts.recordErrors {
+		mmOpts = append(mmOpts, pipeline.WithRecordedSegmentErrors())
+	}
+	return pipeline.NewMultimodal(mm, mmOpts...)
 }
 
 // optionFlags collects repeatable key=value flags.
@@ -193,6 +227,13 @@ func runWith(args []string, stdout, stderr io.Writer, regs registries) error {
 	contextOpts := contextcore.Options{}
 	flags.Var(optionFlags(contextOpts), "context-option",
 		"context reasoning provider option key=value, repeatable (multimodal pipeline only; keys depend on fusion.provider)")
+	pacingName := flags.String("pacing", pacingInstant,
+		"multimodal only: instant (segments back to back, VOD-like) or live (M04 replay in media time)")
+	speed := flags.Float64("speed", 1, "multimodal --pacing live only: media-time speed factor (1 = real time)")
+	segmentErrors := flags.String("on-segment-error", errorsFail,
+		"multimodal only: fail (abort the run) or record (trace the failed segment and continue)")
+	costPerHour := flags.Float64("cost-per-hour", -1,
+		"multimodal only: host price in USD per wall-clock hour; enables costPerVideoHour")
 	if err := flags.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			flags.SetOutput(stderr)
@@ -228,6 +269,37 @@ func runWith(args []string, stdout, stderr io.Writer, regs registries) error {
 	if len(contextOpts) > 0 && *pipelineName != multimodal {
 		return usageError{fmt.Sprintf("--context-option is only valid with --pipeline %s", multimodal)}
 	}
+	set := map[string]bool{}
+	flags.Visit(func(f *flag.Flag) { set[f.Name] = true })
+	for _, name := range []string{"pacing", "speed", "on-segment-error", "cost-per-hour"} {
+		if set[name] && *pipelineName != multimodal {
+			return usageError{fmt.Sprintf("--%s is only valid with --pipeline %s", name, multimodal)}
+		}
+	}
+	pacing := media.Pacing{Instant: true}
+	switch *pacingName {
+	case pacingInstant:
+		if set["speed"] {
+			return usageError{"--speed is only valid with --pacing live"}
+		}
+	case pacingLive:
+		pacing = media.Pacing{Speed: *speed}
+		if err := pacing.Validate(); err != nil {
+			return usageError{"--speed: " + err.Error()}
+		}
+	default:
+		return usageError{fmt.Sprintf("unknown --pacing %q; available: %s, %s", *pacingName, pacingInstant, pacingLive)}
+	}
+	if *segmentErrors != errorsFail && *segmentErrors != errorsRecord {
+		return usageError{fmt.Sprintf("unknown --on-segment-error %q; available: %s, %s", *segmentErrors, errorsFail, errorsRecord)}
+	}
+	var price *float64
+	if set["cost-per-hour"] {
+		if math.IsNaN(*costPerHour) || math.IsInf(*costPerHour, 0) || *costPerHour < 0 {
+			return usageError{fmt.Sprintf("--cost-per-hour must be a finite number >= 0, got %v", *costPerHour)}
+		}
+		price = costPerHour
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
@@ -236,7 +308,15 @@ func runWith(args []string, stdout, stderr io.Writer, regs registries) error {
 	if err != nil {
 		return err
 	}
-	selected, err := newPipeline(*pipelineName, cfg, regs, pipelineOptions{audio: audioOpts, vision: visionOpts, context: contextOpts}, *datasetRoot)
+	popts := pipelineOptions{audio: audioOpts, vision: visionOpts, context: contextOpts, recordErrors: *segmentErrors == errorsRecord}
+	if *pipelineName == multimodal {
+		rec, err := telemetry.NewRecorder(telemetry.RecorderConfig{ExperimentID: cfg.ExperimentID, Pacing: pacing, Progress: stderr})
+		if err != nil {
+			return err
+		}
+		popts.recorder = rec
+	}
+	selected, err := newPipeline(*pipelineName, cfg, regs, popts, *datasetRoot)
 	if err != nil {
 		return err
 	}
@@ -253,9 +333,56 @@ func runWith(args []string, stdout, stderr io.Writer, regs registries) error {
 	if err != nil {
 		return err
 	}
+	identity := config.DatasetIdentity{
+		DatasetID: ds.Manifest.DatasetID, DatasetVersion: ds.Manifest.DatasetVersion, ManifestPath: *manifestPath,
+	}
+	var run *m08Run
+	if popts.recorder != nil {
+		dir, err := artifacts.Create(*outputDir, cfg.ExperimentID)
+		if err != nil {
+			return err
+		}
+		defer dir.Close()
+		popts.recorder.SetSink(dir.WriteTrace)
+		run = &m08Run{dir: dir, recorder: popts.recorder, manifest: artifacts.RunManifest{
+			FormatVersion: artifacts.ManifestFormatVersion,
+			ExperimentID:  cfg.ExperimentID,
+			Pipeline:      *pipelineName,
+			Config:        filepath.Base(*configPath),
+			Dataset:       artifacts.Dataset{DatasetID: identity.DatasetID, DatasetVersion: identity.DatasetVersion, ManifestPath: identity.ManifestPath},
+			Pacing:        *pacingName,
+			SegmentErrors: *segmentErrors,
+			CostPerHour:   price,
+			StartedAt:     time.Now().UTC(),
+			Host:          artifacts.CurrentHost(),
+		}}
+		if popts.recorder.Live() {
+			run.manifest.Speed = speed
+		}
+		if run.manifest.Options, err = describeOptions(audioOpts, visionOpts, contextOpts); err != nil {
+			return err
+		}
+	}
 	outcome, err := runner.Run(ctx, harness.RunInput{Config: cfg, Dataset: ds, ManifestPath: *manifestPath})
+	if err == nil && run != nil {
+		err = run.recorder.Err()
+	}
 	if err != nil {
+		if run != nil {
+			if mErr := run.finish(err); mErr != nil {
+				return errors.Join(err, mErr)
+			}
+		}
 		return err
+	}
+	var summary telemetry.Summary
+	if run != nil {
+		in := telemetry.RunInput{
+			ExperimentID: cfg.ExperimentID, Live: run.recorder.Live(), Records: run.recorder.Records(),
+			Cases: outcome.Cases, CostPerHour: price,
+		}
+		outcome.Result.Metrics = telemetry.Metrics(in)
+		summary = telemetry.Summarize(in)
 	}
 	persister, err := harness.NewPersister(validator, *outputDir)
 	if err != nil {
@@ -264,6 +391,17 @@ func runWith(args []string, stdout, stderr io.Writer, regs registries) error {
 	path, err := persister.Write(outcome.Result, outcome.Dataset)
 	if err != nil {
 		return err
+	}
+	if run != nil {
+		if err := run.dir.WriteRaw(validator, outcome.Cases); err != nil {
+			return err
+		}
+		if err := run.dir.WriteJSON("summary.json", summary); err != nil {
+			return err
+		}
+		if err := run.finish(nil); err != nil {
+			return err
+		}
 	}
 
 	meta := outcome.Metadata
@@ -275,5 +413,52 @@ func runWith(args []string, stdout, stderr io.Writer, regs registries) error {
 	fmt.Fprintf(stdout, "elapsed: %s\n", meta.Elapsed)
 	fmt.Fprintf(stdout, "outputs: audio observations=%d visual observations=%d context events=%d\n",
 		meta.AudioObservations, meta.VisualObservations, meta.ContextEvents)
+	if run != nil {
+		fmt.Fprintf(stdout, "artifacts: %s\n", run.dir.Path())
+		fmt.Fprintf(stdout, "pacing: %s\n", describePacing(pacing))
+		fmt.Fprintf(stdout, "segments: %d (failed %d)\n", summary.Segments, summary.FailedSegments)
+		if summary.RealTimeFactor != nil {
+			fmt.Fprintf(stdout, "real-time factor: %.2f\n", *summary.RealTimeFactor)
+		}
+	}
 	return nil
+}
+
+// m08Run holds the per-run artifact state of a multimodal run.
+type m08Run struct {
+	dir      *artifacts.Dir
+	recorder *telemetry.Recorder
+	manifest artifacts.RunManifest
+}
+
+// finish writes run-manifest.json with the run's final status. It is written
+// for failed runs too, next to the partial trace.
+func (r *m08Run) finish(runErr error) error {
+	r.manifest.FinishedAt = time.Now().UTC()
+	r.manifest.Status = "completed"
+	if runErr != nil {
+		r.manifest.Status = "failed"
+		r.manifest.Error = runErr.Error()
+	}
+	return r.dir.WriteJSON("run-manifest.json", r.manifest)
+}
+
+func describeOptions(a audio.Options, v vision.Options, c contextcore.Options) (artifacts.Options, error) {
+	var out artifacts.Options
+	var err error
+	if out.Audio, err = artifacts.DescribeOptions(a); err != nil {
+		return out, err
+	}
+	if out.Vision, err = artifacts.DescribeOptions(v); err != nil {
+		return out, err
+	}
+	out.Context, err = artifacts.DescribeOptions(c)
+	return out, err
+}
+
+func describePacing(p media.Pacing) string {
+	if p.Instant {
+		return pacingInstant
+	}
+	return fmt.Sprintf("%s %gx", pacingLive, p.Speed)
 }

@@ -134,7 +134,8 @@ func TestRunMultimodalPipelineWithFakeProviders(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(data), `"fusion": {`) || !strings.Contains(string(data), `"metrics": {}`) {
+	if !strings.Contains(string(data), `"fusion": {`) || !strings.Contains(string(data), `"schemaCompliance": 1`) ||
+		strings.Contains(string(data), "latencyP50Ms") {
 		t.Fatalf("result:\n%s", data)
 	}
 	for _, want := range []string{
