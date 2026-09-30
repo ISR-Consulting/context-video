@@ -432,7 +432,12 @@ scripts/m08-run.sh --run-id 2026-10-m5-7b
 ```
 
 Peak memory is about 7 GB (the vision model plus projector); the three
-models load one after another. Smoke run on any host:
+models load one after another. The H4 check (`h4-check.txt`) compares E04 live and VOD
+raw outputs byte for byte. In the VM smoke run the CPU build of
+`llama-mtmd-cli` (b11295) answered differently for the same image at
+`--temp 0 --seed 0`, even with one thread, so a non-empty diff first needs
+checking whether only provider outputs (visual observations and what follows
+from them) differ. Smoke run on any host:
 
 ```bash
 scripts/m08-make-smoke-dataset.sh ~/context-video-smoke
