@@ -7,11 +7,11 @@ window:
   size: 5s
 audio:
   enabled: true
-  provider: TBD
+  provider: whisper-cpp
 vision:
   enabled: true
-  provider: TBD
-  sampling: TBD
+  provider: llama-mtmd
+  sampling: uniform:2
 fusion:
   provider: llama-cpp
 schema:

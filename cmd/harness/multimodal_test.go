@@ -21,9 +21,9 @@ import (
 // committedFusion is the fusion.provider every committed experiment selects.
 const committedFusion = "fusion:\n  provider: llama-cpp\n"
 
-// writeMultimodalConfig writes the committed E04 configuration with every TBD
-// provider and sampling value replaced and fusion.provider set to fusion,
-// keeping the YAML shape. Passing audio=false or vision=false writes the
+// writeMultimodalConfig writes the committed E04 configuration with its audio
+// and vision providers replaced by "fake" and fusion.provider set to fusion,
+// keeping the YAML shape and the committed sampling. Passing audio=false or vision=false writes the
 // committed E02 or E01 shape instead.
 func writeMultimodalConfig(t *testing.T, withAudio, withVision bool, fusion string) string {
 	t.Helper()
@@ -43,14 +43,9 @@ func writeMultimodalConfig(t *testing.T, withAudio, withVision bool, fusion stri
 		t.Fatalf("unexpected fusion section in %s:\n%s", source, text)
 	}
 	text = strings.Replace(text, committedFusion, "", 1)
-	for _, r := range []struct{ old, new string }{
-		{"sampling: TBD", "sampling: uniform:2"},
-		{"provider: TBD", "provider: fake"},
-		{"provider: TBD", "provider: fake"},
-	} {
-		text = strings.Replace(text, r.old, r.new, 1)
-	}
-	if strings.Contains(text, "TBD") {
+	text = strings.Replace(text, "provider: whisper-cpp", "provider: fake", 1)
+	text = strings.Replace(text, "provider: llama-mtmd", "provider: fake", 1)
+	if strings.Contains(text, "whisper-cpp") || strings.Contains(text, "llama-mtmd") || strings.Contains(text, "TBD") {
 		t.Fatalf("unexpected config layout:\n%s", text)
 	}
 	text = strings.Replace(text, "schema:", "fusion:\n  provider: "+fusion+"\nschema:", 1)
@@ -234,9 +229,9 @@ func TestRunMultimodalFailures(t *testing.T) {
 			want: `unknown context reasoning provider "TBD"; available: fake`,
 		},
 		{
-			name: "committed TBD configuration",
+			name: "committed configuration with fake registries",
 			args: func(t *testing.T, output string) []string { return multimodalArgs(output, configFile) },
-			want: "vision.sampling",
+			want: `unknown context reasoning provider "llama-cpp"; available: fake`,
 		},
 		{
 			name: "audio option for a vision-only experiment",

@@ -23,7 +23,7 @@ func writeVisionConfig(t *testing.T, provider, sampling string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	const committed = "vision:\n  enabled: true\n  provider: TBD\n  sampling: TBD\n"
+	const committed = "vision:\n  enabled: true\n  provider: llama-mtmd\n  sampling: uniform:2\n"
 	if !strings.Contains(string(data), committed) {
 		t.Fatalf("unexpected E02 config layout:\n%s", data)
 	}
@@ -166,14 +166,9 @@ func TestRunVisionFailures(t *testing.T) {
 			usage: true, want: `duplicate option "model"`,
 		},
 		{
-			name: "committed config with TBD sampling",
+			name: "committed E02 configuration without a model",
 			args: func(output string) []string { return visionArgs(output, visionOnlyConfig) },
-			check: func(t *testing.T, err error) {
-				if !errors.Is(err, vision.ErrUnsupportedSampling) {
-					t.Fatalf("expected unsupported sampling: %v", err)
-				}
-			},
-			want: `experiment E02 vision.sampling: unsupported vision sampling policy "TBD"; supported: uniform:N`,
+			want: `vision provider "llama-mtmd": option "model" (path to a GGUF vision-language model) is required`,
 		},
 		{
 			name: "TBD provider",
