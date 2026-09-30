@@ -13,6 +13,6 @@ vision:
   provider: TBD
   sampling: TBD
 fusion:
-  provider: TBD
+  provider: llama-cpp
 schema:
   context_event: v1
