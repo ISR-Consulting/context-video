@@ -16,6 +16,8 @@ import (
 
 	"github.com/ISR-Consulting/context-video/internal/audio"
 	"github.com/ISR-Consulting/context-video/internal/audio/providers"
+	contextcore "github.com/ISR-Consulting/context-video/internal/context"
+	contextproviders "github.com/ISR-Consulting/context-video/internal/context/providers"
 	"github.com/ISR-Consulting/context-video/internal/evaluation/config"
 	"github.com/ISR-Consulting/context-video/internal/evaluation/harness"
 	"github.com/ISR-Consulting/context-video/internal/pipeline"
@@ -28,27 +30,30 @@ const (
 	validationOnly = "validation-only"
 	audioPipeline  = "audio"
 	visionPipeline = "vision"
+	multimodal     = "multimodal"
 )
 
 func pipelineNames() []string {
-	return []string{audioPipeline, validationOnly, visionPipeline}
+	return []string{audioPipeline, validationOnly, visionPipeline, multimodal}
 }
 
 // registries holds the provider registries the harness selects adapters from.
 type registries struct {
-	audio  *audio.Registry
-	vision *vision.Registry
+	audio   *audio.Registry
+	vision  *vision.Registry
+	context *contextcore.Registry
 }
 
 // pipelineOptions are the opaque adapter options collected from the CLI.
 type pipelineOptions struct {
-	audio  audio.Options
-	vision vision.Options
+	audio   audio.Options
+	vision  vision.Options
+	context contextcore.Options
 }
 
-// newPipeline builds the pipeline selected by --pipeline. The audio and vision
-// pipelines resolve cfg.Audio.Provider and cfg.Vision.Provider through the
-// registries and never name a vendor.
+// newPipeline builds the pipeline selected by --pipeline. The audio, vision
+// and multimodal pipelines resolve cfg.Audio.Provider, cfg.Vision.Provider and
+// cfg.FusionProvider through the registries and never name a vendor.
 func newPipeline(name string, cfg config.Config, regs registries, opts pipelineOptions, datasetRoot string) (harness.Pipeline, error) {
 	switch name {
 	case validationOnly:
@@ -82,9 +87,52 @@ func newPipeline(name string, cfg config.Config, regs registries, opts pipelineO
 			return nil, err
 		}
 		return visionOnly, nil
+	case multimodal:
+		return newMultimodal(cfg, regs, opts, datasetRoot)
 	default:
 		return nil, usageError{fmt.Sprintf("unknown pipeline %q; available: %s", name, strings.Join(pipelineNames(), ", "))}
 	}
+}
+
+// newMultimodal builds the multimodal pipeline for the modalities cfg
+// enables, with the reasoner named by fusion.provider.
+func newMultimodal(cfg config.Config, regs registries, opts pipelineOptions, datasetRoot string) (harness.Pipeline, error) {
+	if len(opts.audio) > 0 && !cfg.Audio.Enabled {
+		return nil, fmt.Errorf("--audio-option given but experiment %s disables audio", cfg.ExperimentID)
+	}
+	if len(opts.vision) > 0 && !cfg.Vision.Enabled {
+		return nil, fmt.Errorf("--vision-option given but experiment %s disables vision", cfg.ExperimentID)
+	}
+	var mm pipeline.MultimodalConfig
+	if cfg.Vision.Enabled {
+		if _, err := vision.ParseSampling(cfg.Vision.Sampling); err != nil {
+			return nil, fmt.Errorf("experiment %s vision.sampling: %w", cfg.ExperimentID, err)
+		}
+	}
+	reasoner, err := regs.context.New(cfg.FusionProvider, opts.context)
+	if err != nil {
+		return nil, err
+	}
+	engine, err := contextcore.NewEngine(cfg.FusionProvider, reasoner)
+	if err != nil {
+		return nil, err
+	}
+	mm.Engine = engine
+	if cfg.Audio.Enabled {
+		transcriber, err := regs.audio.New(cfg.Audio.Provider, opts.audio)
+		if err != nil {
+			return nil, err
+		}
+		mm.AudioProvider, mm.Transcriber, mm.AudioResolve = cfg.Audio.Provider, transcriber, pipeline.DirResolver(datasetRoot)
+	}
+	if cfg.Vision.Enabled {
+		analyzer, err := regs.vision.New(cfg.Vision.Provider, opts.vision)
+		if err != nil {
+			return nil, err
+		}
+		mm.VisionProvider, mm.Analyzer, mm.VisionResolve = cfg.Vision.Provider, analyzer, pipeline.VisionDirResolver(datasetRoot)
+	}
+	return pipeline.NewMultimodal(mm)
 }
 
 // optionFlags collects repeatable key=value flags.
@@ -120,7 +168,11 @@ func main() {
 }
 
 func run(args []string, stdout, stderr io.Writer) error {
-	return runWith(args, stdout, stderr, registries{audio: providers.Default(), vision: visionproviders.Default()})
+	return runWith(args, stdout, stderr, registries{
+		audio:   providers.Default(),
+		vision:  visionproviders.Default(),
+		context: contextproviders.Default(),
+	})
 }
 
 func runWith(args []string, stdout, stderr io.Writer, regs registries) error {
@@ -134,10 +186,13 @@ func runWith(args []string, stdout, stderr io.Writer, regs registries) error {
 	pipelineName := flags.String("pipeline", validationOnly, "pipeline: "+strings.Join(pipelineNames(), ", "))
 	audioOpts := audio.Options{}
 	flags.Var(optionFlags(audioOpts), "audio-option",
-		"audio provider option key=value, repeatable (audio pipeline only; keys depend on audio.provider)")
+		"audio provider option key=value, repeatable (audio and multimodal pipelines; keys depend on audio.provider)")
 	visionOpts := vision.Options{}
 	flags.Var(optionFlags(visionOpts), "vision-option",
-		"vision provider option key=value, repeatable (vision pipeline only; keys depend on vision.provider)")
+		"vision provider option key=value, repeatable (vision and multimodal pipelines; keys depend on vision.provider)")
+	contextOpts := contextcore.Options{}
+	flags.Var(optionFlags(contextOpts), "context-option",
+		"context reasoning provider option key=value, repeatable (multimodal pipeline only; keys depend on fusion.provider)")
 	if err := flags.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			flags.SetOutput(stderr)
@@ -164,11 +219,14 @@ func runWith(args []string, stdout, stderr io.Writer, regs registries) error {
 	if !slices.Contains(pipelineNames(), *pipelineName) {
 		return usageError{fmt.Sprintf("unknown pipeline %q; available: %s", *pipelineName, strings.Join(pipelineNames(), ", "))}
 	}
-	if len(audioOpts) > 0 && *pipelineName != audioPipeline {
-		return usageError{fmt.Sprintf("--audio-option is only valid with --pipeline %s", audioPipeline)}
+	if len(audioOpts) > 0 && *pipelineName != audioPipeline && *pipelineName != multimodal {
+		return usageError{fmt.Sprintf("--audio-option is only valid with --pipeline %s or %s", audioPipeline, multimodal)}
 	}
-	if len(visionOpts) > 0 && *pipelineName != visionPipeline {
-		return usageError{fmt.Sprintf("--vision-option is only valid with --pipeline %s", visionPipeline)}
+	if len(visionOpts) > 0 && *pipelineName != visionPipeline && *pipelineName != multimodal {
+		return usageError{fmt.Sprintf("--vision-option is only valid with --pipeline %s or %s", visionPipeline, multimodal)}
+	}
+	if len(contextOpts) > 0 && *pipelineName != multimodal {
+		return usageError{fmt.Sprintf("--context-option is only valid with --pipeline %s", multimodal)}
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -178,7 +236,7 @@ func runWith(args []string, stdout, stderr io.Writer, regs registries) error {
 	if err != nil {
 		return err
 	}
-	selected, err := newPipeline(*pipelineName, cfg, regs, pipelineOptions{audio: audioOpts, vision: visionOpts}, *datasetRoot)
+	selected, err := newPipeline(*pipelineName, cfg, regs, pipelineOptions{audio: audioOpts, vision: visionOpts, context: contextOpts}, *datasetRoot)
 	if err != nil {
 		return err
 	}
