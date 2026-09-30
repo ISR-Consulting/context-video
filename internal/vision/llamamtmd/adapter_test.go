@@ -116,6 +116,7 @@ func TestAnalyzeRunsFFmpegThenLlamaPerFrame(t *testing.T) {
 	cfg.FFmpeg = "/opt/homebrew/bin/ffmpeg"
 	cfg.Threads = 8
 	cfg.GPULayers = ptr(99)
+	cfg.CtxSize = 4096
 	cfg.MaxTokens = 256
 	cfg.MaxEdge = 512
 	a, tmp := newAdapter(t, cfg, runner)
@@ -176,7 +177,7 @@ func TestAnalyzeRunsFFmpegThenLlamaPerFrame(t *testing.T) {
 		wantLlama := []string{
 			"-m", cfg.Model, "--mmproj", cfg.MMProj, "--image", image,
 			"-p", Prompt, "--json-schema", ResponseSchema,
-			"--temp", "0", "--seed", "0", "-n", "256", "-t", "8", "-ngl", "99",
+			"--temp", "0", "--seed", "0", "-n", "256", "-t", "8", "-ngl", "99", "-c", "4096",
 		}
 		if !reflect.DeepEqual(llama.args, wantLlama) {
 			t.Fatalf("llama args:\n%q\nwant:\n%q", llama.args, wantLlama)
@@ -213,8 +214,8 @@ func TestAnalyzeDefaults(t *testing.T) {
 	if i := slices.Index(llama, "-n"); llama[i+1] != "512" {
 		t.Fatalf("default max tokens: %q", llama)
 	}
-	if slices.Contains(llama, "-t") || slices.Contains(llama, "-ngl") {
-		t.Fatalf("threads/gpu layers passed by default: %q", llama)
+	if slices.Contains(llama, "-t") || slices.Contains(llama, "-ngl") || slices.Contains(llama, "-c") {
+		t.Fatalf("threads/gpu layers/ctx size passed by default: %q", llama)
 	}
 }
 
@@ -453,14 +454,14 @@ func TestAnalyzeCancellation(t *testing.T) {
 func TestNewFromOptions(t *testing.T) {
 	analyzer, err := NewFromOptions(vision.Options{
 		"model": "/m/vlm.gguf", "mmproj": "/m/mmproj.gguf", "binary": "/b/llama-mtmd-cli", "ffmpeg": "/b/ffmpeg",
-		"threads": "8", "gpu-layers": "0", "max-tokens": "300", "max-edge": "640",
+		"threads": "8", "gpu-layers": "0", "max-tokens": "300", "max-edge": "640", "ctx-size": "4096",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	a := analyzer.(*Adapter)
 	want := Config{Model: "/m/vlm.gguf", MMProj: "/m/mmproj.gguf", Binary: "/b/llama-mtmd-cli", FFmpeg: "/b/ffmpeg",
-		Threads: 8, GPULayers: ptr(0), MaxTokens: 300, MaxEdge: 640}
+		Threads: 8, GPULayers: ptr(0), MaxTokens: 300, MaxEdge: 640, CtxSize: 4096}
 	if !reflect.DeepEqual(a.cfg, want) {
 		t.Fatalf("config: %+v", a.cfg)
 	}
@@ -485,6 +486,7 @@ func TestNewFromOptions(t *testing.T) {
 		"negative layers":  {vision.Options{"model": "m", "mmproj": "p", "gpu-layers": "-1"}, `option "gpu-layers"`},
 		"zero max tokens":  {vision.Options{"model": "m", "mmproj": "p", "max-tokens": "0"}, `option "max-tokens"`},
 		"bad max edge":     {vision.Options{"model": "m", "mmproj": "p", "max-edge": "1.5"}, `option "max-edge"`},
+		"zero ctx size":    {vision.Options{"model": "m", "mmproj": "p", "ctx-size": "0"}, `option "ctx-size"`},
 		"negative in code": {nil, "must not be negative"},
 	} {
 		t.Run(name, func(t *testing.T) {
