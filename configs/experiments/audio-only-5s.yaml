@@ -11,6 +11,6 @@ audio:
 vision:
   enabled: false
 fusion:
-  provider: TBD
+  provider: llama-cpp
 schema:
   context_event: v1

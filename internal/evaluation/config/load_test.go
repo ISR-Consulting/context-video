@@ -23,7 +23,7 @@ func TestCommittedExperimentConfigsLoadUnchanged(t *testing.T) {
 				ExperimentID: "E01", ExperimentName: "audio-only-5s",
 				IngestionMode: IngestionLiveSimulation, WindowSizeRaw: "5s", WindowSize: 5 * time.Second,
 				Audio:          AudioConfig{Enabled: true, Provider: "TBD"},
-				FusionProvider: "TBD", ContextEventSelector: "v1", ContextEventSchemaVersion: "1.0",
+				FusionProvider: "llama-cpp", ContextEventSelector: "v1", ContextEventSchemaVersion: "1.0",
 			},
 		},
 		{
@@ -32,7 +32,7 @@ func TestCommittedExperimentConfigsLoadUnchanged(t *testing.T) {
 				ExperimentID: "E02", ExperimentName: "vision-only-5s",
 				IngestionMode: IngestionLiveSimulation, WindowSizeRaw: "5s", WindowSize: 5 * time.Second,
 				Vision:         VisionConfig{Enabled: true, Provider: "TBD", Sampling: "TBD"},
-				FusionProvider: "TBD", ContextEventSelector: "v1", ContextEventSchemaVersion: "1.0",
+				FusionProvider: "llama-cpp", ContextEventSelector: "v1", ContextEventSchemaVersion: "1.0",
 			},
 		},
 		{
@@ -80,7 +80,7 @@ func multimodal(id, name, raw string, size time.Duration) Config {
 		IngestionMode: IngestionLiveSimulation, WindowSizeRaw: raw, WindowSize: size,
 		Audio:          AudioConfig{Enabled: true, Provider: "TBD"},
 		Vision:         VisionConfig{Enabled: true, Provider: "TBD", Sampling: "TBD"},
-		FusionProvider: "TBD", ContextEventSelector: "v1", ContextEventSchemaVersion: "1.0",
+		FusionProvider: "llama-cpp", ContextEventSelector: "v1", ContextEventSchemaVersion: "1.0",
 	}
 }
 
