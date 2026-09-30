@@ -84,6 +84,8 @@ Status: complete.
 Implement frame sampling/scene selection and selected visual provider behind an interface.
 
 ## M07 — Context Fusion
+Status: complete.
+
 Fuse temporally aligned observations into ContextEvent v1 with evidence and provenance.
 
 ## M08 — Experiment execution

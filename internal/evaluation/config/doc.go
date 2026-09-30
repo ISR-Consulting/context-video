@@ -8,5 +8,7 @@
 // audio pipeline additionally uses audio.provider as the name of the STT
 // adapter to run, and the M06 vision pipeline uses vision.provider as the name
 // of the visual adapter and parses vision.sampling as its frame sampling
-// policy ("uniform:N"). "TBD" names no adapter and no policy.
+// policy ("uniform:N"). The M07 multimodal pipeline additionally uses
+// fusion.provider as the name of the context reasoning adapter. "TBD" names no
+// adapter and no policy.
 package config
