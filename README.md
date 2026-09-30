@@ -274,8 +274,14 @@ MediaSegment
 
 The reasoner is selected by the existing `fusion.provider` and configured with
 repeatable `--context-option key=value` flags. `--audio-option` and
-`--vision-option` apply to the multimodal pipeline as well. The committed
-configurations keep `fusion.provider: TBD`; use a copy.
+`--vision-option` apply to the multimodal pipeline as well. All committed
+experiment configurations (E01–E05) select `fusion.provider: llama-cpp`, used
+with a 7B text model: **Qwen2.5-7B-Instruct Q4_K_M** (for example
+`Qwen2.5-7B-Instruct-Q4_K_M.gguf` from Hugging Face
+`bartowski/Qwen2.5-7B-Instruct-GGUF`, about 4.7 GB). The model file is a
+runtime `--context-option model=…`, not part of the configuration; only its
+file name reaches provenance. Their audio and vision providers and sampling
+are still `TBD`, so use a copy with those filled in.
 
 ### llama.cpp text model (`llama-cpp`)
 
@@ -302,15 +308,25 @@ out-of-range confidences, or anything but one JSON object fail the run).
 On macOS with Homebrew (whisper.cpp and the vision model as in the sections
 above):
 
+First check that the Homebrew llama.cpp build ships `llama-completion`:
+
+```bash
+ls $(brew --prefix llama.cpp)/bin | grep llama-completion
+```
+
+If llama.cpp is not installed, install it with `brew install llama.cpp`. If it
+is installed but has no `llama-completion`, pass the path of a llama.cpp build
+that does with `--context-option binary=<path>`.
+
 ```bash
 brew install llama.cpp whisper-cpp ffmpeg  # llama-completion, llama-mtmd-cli, whisper-cli
-# Download a text model manually, e.g. from Hugging Face
-# Qwen/Qwen2.5-7B-Instruct-GGUF (qwen2.5-7b-instruct-q4_k_m*.gguf)
-# or Qwen/Qwen2.5-3B-Instruct-GGUF (qwen2.5-3b-instruct-q4_k_m.gguf) on 8 GB Macs.
+# Download the text model manually, e.g. from Hugging Face
+# bartowski/Qwen2.5-7B-Instruct-GGUF: Qwen2.5-7B-Instruct-Q4_K_M.gguf
+# (Qwen/Qwen2.5-3B-Instruct-GGUF qwen2.5-3b-instruct-q4_k_m.gguf is the
+# smaller, noticeably weaker alternative for 8 GB Macs).
 sed -e '/^audio:/,/^vision:/ s/provider: TBD/provider: whisper-cpp/' \
     -e '/^vision:/,/^fusion:/ s/provider: TBD/provider: llama-mtmd/' \
     -e 's/sampling: TBD/sampling: uniform:2/' \
-    -e '/^fusion:/,/^schema:/ s/provider: TBD/provider: llama-cpp/' \
   configs/experiments/multimodal-5s.yaml > /tmp/e04.yaml
 go run ./cmd/harness \
   --config /tmp/e04.yaml \
@@ -321,7 +337,7 @@ go run ./cmd/harness \
   --audio-option model="$HOME/models/ggml-large-v3-turbo.bin" --audio-option language=pt \
   --vision-option model="$HOME/models/Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf" \
   --vision-option mmproj="$HOME/models/mmproj-Qwen2.5-VL-7B-Instruct-f16.gguf" \
-  --context-option model="$HOME/models/qwen2.5-7b-instruct-q4_k_m.gguf"
+  --context-option model="$HOME/models/Qwen2.5-7B-Instruct-Q4_K_M.gguf"
 ```
 
 The three models are loaded one after another per window, not at once; the
@@ -331,7 +347,7 @@ is measured in M08. Offline tests use fakes; an opt-in integration test runs
 the real reasoner on a synthetic window:
 
 ```bash
-CONTEXT_VIDEO_LLM_MODEL=$HOME/models/qwen2.5-3b-instruct-q4_k_m.gguf \
+CONTEXT_VIDEO_LLM_MODEL=$HOME/models/Qwen2.5-7B-Instruct-Q4_K_M.gguf \
 go test -tags integration -run Integration -v ./internal/context/llamacpp
 ```
 

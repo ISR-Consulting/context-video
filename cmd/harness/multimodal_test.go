@@ -7,17 +7,24 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/ISR-Consulting/context-video/internal/audio"
 	contextcore "github.com/ISR-Consulting/context-video/internal/context"
+	contextproviders "github.com/ISR-Consulting/context-video/internal/context/providers"
+	"github.com/ISR-Consulting/context-video/internal/evaluation/config"
 	"github.com/ISR-Consulting/context-video/internal/vision"
 )
 
+// committedFusion is the fusion.provider every committed experiment selects.
+const committedFusion = "fusion:\n  provider: llama-cpp\n"
+
 // writeMultimodalConfig writes the committed E04 configuration with every TBD
-// provider and sampling value replaced, keeping the YAML shape. Passing
-// audio=false or vision=false writes the committed E02 or E01 shape instead.
+// provider and sampling value replaced and fusion.provider set to fusion,
+// keeping the YAML shape. Passing audio=false or vision=false writes the
+// committed E02 or E01 shape instead.
 func writeMultimodalConfig(t *testing.T, withAudio, withVision bool, fusion string) string {
 	t.Helper()
 	source := configFile
@@ -32,17 +39,21 @@ func writeMultimodalConfig(t *testing.T, withAudio, withVision bool, fusion stri
 		t.Fatal(err)
 	}
 	text := string(data)
+	if !strings.Contains(text, committedFusion) {
+		t.Fatalf("unexpected fusion section in %s:\n%s", source, text)
+	}
+	text = strings.Replace(text, committedFusion, "", 1)
 	for _, r := range []struct{ old, new string }{
 		{"sampling: TBD", "sampling: uniform:2"},
-		{"fusion:\n  provider: TBD", "fusion:\n  provider: " + fusion},
 		{"provider: TBD", "provider: fake"},
 		{"provider: TBD", "provider: fake"},
 	} {
 		text = strings.Replace(text, r.old, r.new, 1)
 	}
-	if strings.Contains(strings.Replace(text, "fusion:\n  provider: TBD", "", 1), "TBD") {
+	if strings.Contains(text, "TBD") {
 		t.Fatalf("unexpected config layout:\n%s", text)
 	}
+	text = strings.Replace(text, "schema:", "fusion:\n  provider: "+fusion+"\nschema:", 1)
 	path := filepath.Join(t.TempDir(), "multimodal.yaml")
 	if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
 		t.Fatal(err)
@@ -264,5 +275,22 @@ func TestRunMultimodalDefaultRegistriesRejectMissingModel(t *testing.T) {
 	err := run(multimodalArgs(filepath.Join(t.TempDir(), "results"), config), &stdout, &stderr)
 	if err == nil || !strings.Contains(err.Error(), `context reasoning provider "llama-cpp": option "model"`) {
 		t.Fatalf("err: %v", err)
+	}
+}
+
+func TestCommittedExperimentsSelectRegisteredReasoner(t *testing.T) {
+	paths, err := filepath.Glob(filepath.Join("..", "..", "configs", "experiments", "*.yaml"))
+	if err != nil || len(paths) != 5 {
+		t.Fatalf("configs: %v %v", paths, err)
+	}
+	available := contextproviders.Default().Names()
+	for _, path := range paths {
+		cfg, err := config.LoadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.FusionProvider != "llama-cpp" || !slices.Contains(available, cfg.FusionProvider) {
+			t.Errorf("%s: fusion.provider %q; registered: %v", path, cfg.FusionProvider, available)
+		}
 	}
 }
