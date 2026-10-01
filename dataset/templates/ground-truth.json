@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.0",
+  "testCaseId": "<test-case-id>",
+  "content": {
+    "contentId": "<contentId from the manifest entry>",
+    "contentType": "<LIVE or VOD, as in the manifest entry>"
+  },
+  "annotations": [
+    {
+      "annotationId": "<test-case-id>-0001",
+      "window": {
+        "startMs": 0,
+        "endMs": 0
+      },
+      "expected": {
+        "required": {
+          "entities": [],
+          "topics": [],
+          "objects": [],
+          "brands": []
+        },
+        "optional": {},
+        "forbidden": {}
+      },
+      "ambiguityNote": "<required when optional is not empty>",
+      "annotatorNote": "<what is visible or said in this window>"
+    }
+  ]
+}

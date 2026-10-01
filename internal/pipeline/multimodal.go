@@ -38,12 +38,43 @@ func WithMultimodalPipelineVersion(version string) MultimodalOption {
 	return func(m *Multimodal) { m.pipelineVersion = version }
 }
 
+// SegmentObserver is notified around the segments of a Multimodal run, in
+// media order and on the calling goroutine. It is how a harness paces
+// segments (BeforeSegment may block until a segment is due) and records
+// per-segment outcomes without the pipeline knowing about either.
+type SegmentObserver interface {
+	// BeginCase is called once per test case, before any segment of it.
+	BeginCase(ctx context.Context, testCaseID string, segments []contracts.MediaSegment) error
+	// BeforeSegment is called before a segment's perception starts. An error
+	// aborts the run.
+	BeforeSegment(ctx context.Context, segment contracts.MediaSegment) error
+	// AfterSegment is called once per processed segment with the events it
+	// produced or with its error. Without WithRecordedSegmentErrors the run
+	// then aborts with that error.
+	AfterSegment(segment contracts.MediaSegment, events []contracts.ContextEventV1, err error)
+}
+
+// WithSegmentObserver notifies observer around every segment.
+func WithSegmentObserver(observer SegmentObserver) MultimodalOption {
+	return func(m *Multimodal) { m.observer = observer }
+}
+
+// WithRecordedSegmentErrors makes a failing segment contribute no
+// ContextEvents instead of failing the run. The failure is passed to the
+// SegmentObserver, which is then required. Observations the segment produced
+// before failing are kept. Cancellation still aborts the run.
+func WithRecordedSegmentErrors() MultimodalOption {
+	return func(m *Multimodal) { m.recordErrors = true }
+}
+
 // Multimodal is the context reasoning harness pipeline. For every M04 segment
 // it runs the enabled perception ports, then the context engine, and returns
 // the observations together with the ContextEvents derived from them.
 type Multimodal struct {
 	cfg             MultimodalConfig
 	pipelineVersion string
+	observer        SegmentObserver
+	recordErrors    bool
 }
 
 // NewMultimodal returns a Multimodal pipeline. At least one modality must be
@@ -73,6 +104,9 @@ func NewMultimodal(cfg MultimodalConfig, opts ...MultimodalOption) (*Multimodal,
 	}
 	if strings.TrimSpace(m.pipelineVersion) == "" {
 		return nil, errors.New("pipeline: blank pipeline version")
+	}
+	if m.recordErrors && m.observer == nil {
+		return nil, errors.New("pipeline: recorded segment errors need a segment observer")
 	}
 	return m, nil
 }
@@ -136,47 +170,73 @@ func (m *Multimodal) Process(ctx context.Context, in harness.PipelineInput) (har
 		return harness.PipelineOutput{}, err
 	}
 
+	if m.observer != nil {
+		if err := m.observer.BeginCase(ctx, testCase.TestCaseID, segments); err != nil {
+			return harness.PipelineOutput{}, err
+		}
+	}
 	var out harness.PipelineOutput
 	for _, segment := range segments {
 		if err := ctx.Err(); err != nil {
 			return harness.PipelineOutput{}, err
 		}
-		input := contextcore.CorrelationInput{Segment: segment}
-		if audioWired {
-			transcription, err := m.cfg.Transcriber.Transcribe(ctx, audio.Request{Segment: segment, Source: audioSource})
-			if err != nil {
-				return harness.PipelineOutput{}, contextcore.SegmentError(contextcore.StageAudio, segment, m.cfg.AudioProvider, err)
+		if m.observer != nil {
+			if err := m.observer.BeforeSegment(ctx, segment); err != nil {
+				return harness.PipelineOutput{}, err
 			}
-			observation, err := audio.NewObservation(segment, transcription, m.pipelineVersion)
-			if err != nil {
-				return harness.PipelineOutput{}, contextcore.SegmentError(contextcore.StageAudio, segment, m.cfg.AudioProvider, err)
-			}
-			input.Audio = []contracts.AudioObservation{observation}
-			out.AudioObservations = append(out.AudioObservations, observation)
 		}
-		if visionWired {
-			times, err := sampler.FrameTimes(segment.Window)
-			if err != nil {
-				return harness.PipelineOutput{}, contextcore.SegmentError(contextcore.StageVision, segment, m.cfg.VisionProvider, err)
-			}
-			analysis, err := m.cfg.Analyzer.Analyze(ctx, vision.Request{Segment: segment, Source: visionSource, FrameTimesMs: times})
-			if err != nil {
-				return harness.PipelineOutput{}, contextcore.SegmentError(contextcore.StageVision, segment, m.cfg.VisionProvider, err)
-			}
-			observation, err := vision.NewObservation(segment, times, analysis, m.pipelineVersion)
-			if err != nil {
-				return harness.PipelineOutput{}, contextcore.SegmentError(contextcore.StageVision, segment, m.cfg.VisionProvider, err)
-			}
-			input.Visual = []contracts.VisualObservation{observation}
-			out.VisualObservations = append(out.VisualObservations, observation)
-		}
-		events, err := m.cfg.Engine.Process(ctx, input)
+		events, err := m.processSegment(ctx, segment, audioSource, visionSource, sampler, &out)
 		if err != nil {
-			return harness.PipelineOutput{}, err
+			if m.observer != nil {
+				m.observer.AfterSegment(segment, nil, err)
+			}
+			if !m.recordErrors || ctx.Err() != nil {
+				return harness.PipelineOutput{}, err
+			}
+			continue
 		}
 		out.ContextEvents = append(out.ContextEvents, events...)
+		if m.observer != nil {
+			m.observer.AfterSegment(segment, events, nil)
+		}
 	}
 	return out, nil
+}
+
+// processSegment runs perception, correlation and reasoning for one segment,
+// appending its observations to out as soon as each exists.
+func (m *Multimodal) processSegment(ctx context.Context, segment contracts.MediaSegment, audioSource audio.Source,
+	visionSource vision.Source, sampler vision.Sampler, out *harness.PipelineOutput) ([]contracts.ContextEventV1, error) {
+	input := contextcore.CorrelationInput{Segment: segment}
+	if m.cfg.Transcriber != nil {
+		transcription, err := m.cfg.Transcriber.Transcribe(ctx, audio.Request{Segment: segment, Source: audioSource})
+		if err != nil {
+			return nil, contextcore.SegmentError(contextcore.StageAudio, segment, m.cfg.AudioProvider, err)
+		}
+		observation, err := audio.NewObservation(segment, transcription, m.pipelineVersion)
+		if err != nil {
+			return nil, contextcore.SegmentError(contextcore.StageAudio, segment, m.cfg.AudioProvider, err)
+		}
+		input.Audio = []contracts.AudioObservation{observation}
+		out.AudioObservations = append(out.AudioObservations, observation)
+	}
+	if m.cfg.Analyzer != nil {
+		times, err := sampler.FrameTimes(segment.Window)
+		if err != nil {
+			return nil, contextcore.SegmentError(contextcore.StageVision, segment, m.cfg.VisionProvider, err)
+		}
+		analysis, err := m.cfg.Analyzer.Analyze(ctx, vision.Request{Segment: segment, Source: visionSource, FrameTimesMs: times})
+		if err != nil {
+			return nil, contextcore.SegmentError(contextcore.StageVision, segment, m.cfg.VisionProvider, err)
+		}
+		observation, err := vision.NewObservation(segment, times, analysis, m.pipelineVersion)
+		if err != nil {
+			return nil, contextcore.SegmentError(contextcore.StageVision, segment, m.cfg.VisionProvider, err)
+		}
+		input.Visual = []contracts.VisualObservation{observation}
+		out.VisualObservations = append(out.VisualObservations, observation)
+	}
+	return m.cfg.Engine.Process(ctx, input)
 }
 
 func wiredWord(wired bool) string {

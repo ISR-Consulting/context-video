@@ -20,6 +20,7 @@ const (
 	OptionGPULayers = "gpu-layers"
 	OptionMaxTokens = "max-tokens"
 	OptionMaxEdge   = "max-edge"
+	OptionCtxSize   = "ctx-size"
 )
 
 const (
@@ -46,10 +47,12 @@ type Config struct {
 	MaxTokens int
 	// MaxEdge bounds the longer frame edge in pixels; 0 means 768.
 	MaxEdge int
+	// CtxSize is passed as -c when > 0; 0 keeps the llama.cpp default.
+	CtxSize int
 }
 
 func configFromOptions(opts vision.Options) (Config, error) {
-	known := []string{OptionBinary, OptionFFmpeg, OptionGPULayers, OptionMaxEdge, OptionMaxTokens, OptionMMProj, OptionModel, OptionThreads}
+	known := []string{OptionBinary, OptionCtxSize, OptionFFmpeg, OptionGPULayers, OptionMaxEdge, OptionMaxTokens, OptionMMProj, OptionModel, OptionThreads}
 	var errs []error
 	for key := range opts {
 		if !slices.Contains(known, key) {
@@ -82,6 +85,7 @@ func configFromOptions(opts vision.Options) (Config, error) {
 	intOption(OptionThreads, 1, &cfg.Threads)
 	intOption(OptionMaxTokens, 1, &cfg.MaxTokens)
 	intOption(OptionMaxEdge, 1, &cfg.MaxEdge)
+	intOption(OptionCtxSize, 1, &cfg.CtxSize)
 	var layers int
 	if intOption(OptionGPULayers, 0, &layers) {
 		cfg.GPULayers = &layers
@@ -101,8 +105,8 @@ func (c Config) withDefaults() (Config, error) {
 	if strings.TrimSpace(c.MMProj) == "" {
 		errs = append(errs, fmt.Errorf("option %q (path to the matching GGUF mmproj projector) is required", OptionMMProj))
 	}
-	if c.Threads < 0 || c.MaxTokens < 0 || c.MaxEdge < 0 || (c.GPULayers != nil && *c.GPULayers < 0) {
-		errs = append(errs, errors.New("threads, gpu-layers, max-tokens and max-edge must not be negative"))
+	if c.Threads < 0 || c.MaxTokens < 0 || c.MaxEdge < 0 || c.CtxSize < 0 || (c.GPULayers != nil && *c.GPULayers < 0) {
+		errs = append(errs, errors.New("threads, gpu-layers, max-tokens, max-edge and ctx-size must not be negative"))
 	}
 	if len(errs) > 0 {
 		return Config{}, errors.Join(errs...)

@@ -97,9 +97,8 @@ supplies one, and provenance records provider, model and `pipelineVersion`
 harness selects one through `audio.provider` and passes adapter settings
 opaquely with repeatable `--audio-option key=value` flags.
 
-The committed configurations keep `audio.provider: TBD`, which is not a
-registered adapter, so `--pipeline audio` refuses to run them. Use a copy with
-the provider you want.
+The committed E01 and E03–E05 configurations select `audio.provider:
+whisper-cpp`, the only registered adapter.
 
 ### whisper.cpp (`whisper-cpp`)
 
@@ -122,10 +121,8 @@ On macOS with Homebrew:
 ```bash
 brew install whisper-cpp ffmpeg
 # download a model, e.g. ggml-large-v3-turbo.bin, into ~/models
-sed '/^audio:/,/^vision:/ s/provider: TBD/provider: whisper-cpp/' \
-  configs/experiments/audio-only-5s.yaml > /tmp/e01-whisper.yaml
 go run ./cmd/harness \
-  --config /tmp/e01-whisper.yaml \
+  --config configs/experiments/audio-only-5s.yaml \
   --manifest manifests/<dataset-id>-v<dataset-version>.json \
   --dataset-root dataset \
   --output /tmp/results \
@@ -134,8 +131,7 @@ go run ./cmd/harness \
   --audio-option language=pt
 ```
 
-The `sed` rewrites only `audio.provider`. The dataset must reference approved
-`LOCAL` media. Offline tests use fakes; an
+The dataset must reference approved `LOCAL` media. Offline tests use fakes; an
 opt-in integration test runs the real tools:
 
 ```bash
@@ -163,9 +159,10 @@ through `vision.provider` and passes settings with repeatable
 `vision.sampling` accepts `uniform:N` (N = 1..16): N frames at the centres of N
 equal slices of `[startMs, endMs)`, so every frame is strictly inside its
 window. For example `uniform:2` on `0-5000` samples 1250 and 3750 ms.
-Scene-change selection is not implemented. The committed configurations keep
-`vision.provider: TBD` and `vision.sampling: TBD`, which `--pipeline vision`
-refuses to run; use a copy.
+Scene-change selection is not implemented. The committed E02–E05
+configurations select `vision.provider: llama-mtmd` with sampling chosen for a
+roughly constant frame density: E02 and E04 `uniform:2`, E03 `uniform:1`, E05
+`uniform:4`.
 
 ### llama.cpp multimodal (`llama-mtmd`)
 
@@ -196,6 +193,7 @@ the observation provenance contract has no prompt field.
 | `gpu-layers` | llama.cpp default | `-ngl` |
 | `max-tokens` | `512` | answer token limit (`-n`) |
 | `max-edge` | `768` | longest frame edge in pixels |
+| `ctx-size` | llama.cpp default | context size (`-c`); M08 pins `4096` |
 
 On macOS with Homebrew:
 
@@ -205,11 +203,8 @@ brew install llama.cpp ffmpeg   # provides llama-mtmd-cli
 # ggml-org/Qwen2.5-VL-7B-Instruct-GGUF:
 #   Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf and mmproj-Qwen2.5-VL-7B-Instruct-f16.gguf
 # (ggml-org/Qwen2.5-VL-3B-Instruct-GGUF is the smaller alternative).
-sed -e '/^vision:/,/^fusion:/ s/provider: TBD/provider: llama-mtmd/' \
-    -e 's/sampling: TBD/sampling: uniform:2/' \
-  configs/experiments/vision-only-5s.yaml > /tmp/e02-llama.yaml
 go run ./cmd/harness \
-  --config /tmp/e02-llama.yaml \
+  --config configs/experiments/vision-only-5s.yaml \
   --manifest manifests/<dataset-id>-v<dataset-version>.json \
   --dataset-root dataset \
   --output /tmp/results \
@@ -266,9 +261,9 @@ MediaSegment
   reasoner only as labelled, uncalibrated metadata.
 - **Provenance.** `fusionProvider` is the reasoner name, `fusionModel` the
   model file name, `promptVersion` the reasoning prompt version.
-- **Output.** All observations and ContextEvents stay in the in-memory run
-  outcome; the persisted `ExperimentResult` remains the metrics envelope.
-  Correlation, ordering, IDs and mapping are deterministic; model output is
+- **Output.** The persisted `ExperimentResult` is the metrics envelope; every
+  observation and ContextEvent is written next to it as raw JSON Lines (see
+  [M08 experiment execution](#m08-experiment-execution)). Correlation, ordering, IDs and mapping are deterministic; model output is
   reproducible only for a fixed llama.cpp build, model, thread count and
   backend.
 
@@ -281,7 +276,7 @@ with a 7B text model: **Qwen2.5-7B-Instruct Q4_K_M** (for example
 `bartowski/Qwen2.5-7B-Instruct-GGUF`, about 4.7 GB). The model file is a
 runtime `--context-option model=…`, not part of the configuration; only its
 file name reaches provenance. Their audio and vision providers and sampling
-are still `TBD`, so use a copy with those filled in.
+are set too (see above), so the committed files run as they are.
 
 ### llama.cpp text model (`llama-cpp`)
 
@@ -303,7 +298,7 @@ out-of-range confidences, or anything but one JSON object fail the run).
 | `threads` | llama.cpp default | `-t` |
 | `gpu-layers` | llama.cpp default | `-ngl` |
 | `max-tokens` | `1024` | answer token limit (`-n`) |
-| `ctx-size` | model default | context size (`-c`) |
+| `ctx-size` | model default | context size (`-c`); M08 pins `8192` |
 
 On macOS with Homebrew (whisper.cpp and the vision model as in the sections
 above):
@@ -324,12 +319,8 @@ brew install llama.cpp whisper-cpp ffmpeg  # llama-completion, llama-mtmd-cli, w
 # bartowski/Qwen2.5-7B-Instruct-GGUF: Qwen2.5-7B-Instruct-Q4_K_M.gguf
 # (Qwen/Qwen2.5-3B-Instruct-GGUF qwen2.5-3b-instruct-q4_k_m.gguf is the
 # smaller, noticeably weaker alternative for 8 GB Macs).
-sed -e '/^audio:/,/^vision:/ s/provider: TBD/provider: whisper-cpp/' \
-    -e '/^vision:/,/^fusion:/ s/provider: TBD/provider: llama-mtmd/' \
-    -e 's/sampling: TBD/sampling: uniform:2/' \
-  configs/experiments/multimodal-5s.yaml > /tmp/e04.yaml
 go run ./cmd/harness \
-  --config /tmp/e04.yaml \
+  --config configs/experiments/multimodal-5s.yaml \
   --manifest manifests/<dataset-id>-v<dataset-version>.json \
   --dataset-root dataset \
   --output /tmp/results \
@@ -337,7 +328,8 @@ go run ./cmd/harness \
   --audio-option model="$HOME/models/ggml-large-v3-turbo.bin" --audio-option language=pt \
   --vision-option model="$HOME/models/Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf" \
   --vision-option mmproj="$HOME/models/mmproj-Qwen2.5-VL-7B-Instruct-f16.gguf" \
-  --context-option model="$HOME/models/Qwen2.5-7B-Instruct-Q4_K_M.gguf"
+  --context-option model="$HOME/models/Qwen2.5-7B-Instruct-Q4_K_M.gguf" \
+  --context-option ctx-size=8192
 ```
 
 The three models are loaded one after another per window, not at once; the
@@ -352,6 +344,108 @@ go test -tags integration -run Integration -v ./internal/context/llamacpp
 ```
 
 `CONTEXT_VIDEO_LLM_BINARY` overrides the `llama-completion` binary.
+
+## M08 experiment execution
+
+M08 runs E01–E05 against the Golden Dataset through `--pipeline multimodal`
+(E01 and E02 included, so all five produce ContextEvents). The plan and its
+approved decisions are recorded in the Project's M08 plan; the runnable parts
+are:
+
+- `scripts/m08-run.sh`: the runbook. It runs E01, E02, E04, E05 and E03 with
+  Live pacing, then reruns E04 with instant (VOD) pacing and diffs the two raw
+  outputs (the H4 check). Everything goes to
+  `~/context-video-runs/m08/<run-id>/` (or `--runs-dir`, default
+  `$CONTEXT_VIDEO_RUNS_DIR`), and a directory inside the repository is refused.
+- `scripts/m08-record-clip.sh`: records one fixed 60–120 s clip from a YouTube
+  live stream or past broadcast and prints its manifest entry. A live stream is
+  not reproducible; the recorded clip is, and `--pacing live` replays it in
+  media time. Rights and YouTube Terms of Service are the operator's call.
+- `scripts/m08-make-smoke-dataset.sh`: generates a synthetic 20 s clip
+  (drawn scoreboard, synthetic pt-BR speech) with manifest and ground truth,
+  for smoke runs on any host. It is not Golden Dataset evidence.
+- `dataset/ANNOTATION-GUIDELINES.md` (v1.0) and `dataset/templates/`: the
+  annotation rules and the manifest and ground-truth skeletons for the clips.
+
+### Harness flags (multimodal only)
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--pacing` | `instant` | `instant`: segments back to back (VOD-like). `live`: each test case is replayed from media time 0 by the M04 simulator and a segment starts only once its window has played |
+| `--speed` | `1` | live replay speed (1 = real time) |
+| `--on-segment-error` | `fail` | `fail` aborts the run; `record` traces the failed segment (no ContextEvents from it, its observations kept) and continues. Cancellation always aborts |
+| `--cost-per-hour` | unset | host price in USD per wall-clock hour; enables `costPerVideoHour` |
+
+Processing stays sequential. On CPU and probably on a Mac every call reloads
+its model and the pipeline is slower than real time, so Live latency is
+dominated by queueing; that is a finding, not a bug.
+
+### Artifacts
+
+A multimodal run writes `<output>/<experiment-id>/` and refuses to start if
+it exists:
+
+```text
+<dataset-id>-v<ver>.json          ExperimentResult (metrics filled, schema unchanged)
+raw/<test-case-id>/audio-observations.jsonl
+raw/<test-case-id>/visual-observations.jsonl
+raw/<test-case-id>/context-events.jsonl   one schema-valid contract object per line
+trace/<test-case-id>.jsonl        one record per segment, appended as it finishes: due, start and
+                                  finish times, per-call stage timing, event IDs, failure stage/error
+summary.json                      stage percentiles, queue wait, real-time factor, failures by stage
+run-manifest.json                 pacing, policy, host, dataset, adapter options (files by base name
+                                  and SHA-256, never host paths), status; written for failed runs too
+```
+
+Metrics (a metric without samples is absent):
+
+- `latencyP50/P95/P99Ms`: Live only, one sample per ContextEvent: the time
+  the segment's events were available minus the time the window's first
+  instant played on the replay clock.
+- `schemaCompliance`: validated contract objects ÷ emitted. Invalid output
+  aborts a run, so a completed run scores 1 by construction.
+- `evidenceTraceability`: events whose every evidence item resolves to an
+  observation of the same test case ÷ events.
+- `contextStability`: per test case, the mean Jaccard similarity of the
+  label sets of adjacent windows (both-empty pairs skipped), averaged over test
+  cases. Labels are compared lexically.
+- `costPerVideoHour`: `--cost-per-hour` × processing time ÷ media time.
+
+Confidences in the raw artifacts are uncalibrated model self-assessments, not
+probabilities. Quality scoring against the ground truth is M09.
+
+### Canonical run (MacBook Pro, 16 GB)
+
+```bash
+brew install llama.cpp whisper-cpp ffmpeg yt-dlp
+ls $(brew --prefix llama.cpp)/bin | grep -E 'llama-(completion|mtmd-cli)'
+# ~/models: ggml-large-v3-turbo.bin, Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf,
+#           mmproj-Qwen2.5-VL-7B-Instruct-f16.gguf, Qwen2.5-7B-Instruct-Q4_K_M.gguf
+scripts/m08-record-clip.sh --url 'https://www.youtube.com/watch?v=<id>' \
+  --id football-live-01 --scenario FOOTBALL_SPORTS_APPAREL      # repeat per clip
+cp dataset/templates/poc-golden-v1.0.json dataset/manifests/     # paste the printed entries
+# write dataset/ground-truth/poc-golden/<test-case-id>.json per the guidelines
+go run ./cmd/harness --config configs/experiments/multimodal-5s.yaml \
+  --manifest manifests/poc-golden-v1.0.json --output /tmp/check --pipeline validation-only
+scripts/m08-run.sh --run-id calibrate --experiments E04 --no-vod   # time one experiment first
+scripts/m08-run.sh --run-id 2026-10-m5-7b
+```
+
+Peak memory is about 7 GB (the vision model plus projector); the three
+models load one after another. The H4 check (`h4-check.txt`) compares E04 live and VOD
+raw outputs byte for byte. In the VM smoke run the CPU build of
+`llama-mtmd-cli` (b11295) answered differently for the same image at
+`--temp 0 --seed 0`, even with one thread, so a non-empty diff first needs
+checking whether only provider outputs (visual observations and what follows
+from them) differ. Smoke run on any host:
+
+```bash
+scripts/m08-make-smoke-dataset.sh ~/context-video-smoke
+WHISPER_MODEL=ggml-small.bin VLM_MODEL=Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf \
+VLM_MMPROJ=mmproj-Qwen2.5-VL-3B-Instruct-Q8_0.gguf LLM_MODEL=qwen2.5-3b-instruct-q4_k_m.gguf \
+scripts/m08-run.sh --run-id smoke --dataset-root ~/context-video-smoke \
+  --manifest manifests/poc-smoke-v0.1.json
+```
 
 ## Live simulator
 

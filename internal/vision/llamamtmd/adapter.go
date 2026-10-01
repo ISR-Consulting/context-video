@@ -109,7 +109,7 @@ func New(cfg Config, opts ...AdapterOption) (*Adapter, error) {
 
 // NewFromOptions is the vision.Factory for ProviderName. Supported keys are
 // model and mmproj (required), binary, ffmpeg, threads, gpu-layers,
-// max-tokens and max-edge.
+// max-tokens, max-edge and ctx-size.
 func NewFromOptions(opts vision.Options) (vision.Analyzer, error) {
 	cfg, err := configFromOptions(opts)
 	if err != nil {
@@ -229,6 +229,9 @@ func (a *Adapter) llamaArgs(image string) []string {
 	}
 	if a.cfg.GPULayers != nil {
 		args = append(args, "-ngl", strconv.Itoa(*a.cfg.GPULayers))
+	}
+	if a.cfg.CtxSize > 0 {
+		args = append(args, "-c", strconv.Itoa(a.cfg.CtxSize))
 	}
 	return args
 }

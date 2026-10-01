@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "1.0",
+  "datasetId": "poc-golden",
+  "datasetVersion": "1.0",
+  "name": "POC Golden Dataset",
+  "description": "Fixed 60-120 s clips recorded with scripts/m08-record-clip.sh and annotated per dataset/ANNOTATION-GUIDELINES.md v1.0.",
+  "annotationGuidelinesVersion": "1.0",
+  "testCases": []
+}

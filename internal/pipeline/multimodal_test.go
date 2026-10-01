@@ -96,6 +96,7 @@ type mmParts struct {
 	analyzer    *fakeAnalyzer
 	reasoner    contextcore.Reasoner
 	engineOpts  []contextcore.EngineOption
+	opts        []MultimodalOption
 }
 
 func newMultimodal(t *testing.T, p mmParts) *Multimodal {
@@ -114,7 +115,7 @@ func newMultimodal(t *testing.T, p mmParts) *Multimodal {
 	if p.analyzer != nil {
 		cfg.VisionProvider, cfg.Analyzer, cfg.VisionResolve = "fake", p.analyzer, VisionDirResolver(datasetRoot)
 	}
-	m, err := NewMultimodal(cfg)
+	m, err := NewMultimodal(cfg, p.opts...)
 	if err != nil {
 		t.Fatal(err)
 	}

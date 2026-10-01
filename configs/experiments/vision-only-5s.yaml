@@ -9,8 +9,8 @@ audio:
   enabled: false
 vision:
   enabled: true
-  provider: TBD
-  sampling: TBD
+  provider: llama-mtmd
+  sampling: uniform:2
 fusion:
   provider: llama-cpp
 schema:

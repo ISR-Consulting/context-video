@@ -135,16 +135,11 @@ func TestRunFailures(t *testing.T) {
 			usage: true, want: `duplicate option "model"`,
 		},
 		{
-			name: "audio pipeline with TBD provider",
+			name: "committed E01 configuration without a model",
 			args: func(output string) []string {
 				return withFlag(withFlag(baseArgs(output), "--pipeline", "audio"), "--config", audioOnlyConfig)
 			},
-			check: func(t *testing.T, err error) {
-				if !errors.Is(err, audio.ErrUnknownProvider) {
-					t.Fatalf("expected unknown provider: %v", err)
-				}
-			},
-			want: `unknown audio provider "TBD"; available: whisper-cpp`,
+			want: `audio provider "whisper-cpp": option "model" (path to a ggml model file) is required`,
 		},
 		{
 			name: "audio pipeline with audio disabled",
@@ -231,11 +226,11 @@ func writeAudioConfig(t *testing.T, provider string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(data), "provider: TBD\nvision") {
+	if !strings.Contains(string(data), "provider: whisper-cpp\nvision") {
 		t.Fatalf("unexpected E01 config layout:\n%s", data)
 	}
 	path := filepath.Join(t.TempDir(), "e01.yaml")
-	patched := strings.Replace(string(data), "provider: TBD\nvision", "provider: "+provider+"\nvision", 1)
+	patched := strings.Replace(string(data), "provider: whisper-cpp\nvision", "provider: "+provider+"\nvision", 1)
 	if err := os.WriteFile(path, []byte(patched), 0o644); err != nil {
 		t.Fatal(err)
 	}

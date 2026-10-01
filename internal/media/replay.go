@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"time"
 
@@ -68,37 +69,79 @@ func (s *Simulator) Replay(ctx context.Context, segments []contracts.MediaSegmen
 	if emit == nil {
 		return 0, errors.New("media: nil emit")
 	}
-	if err := checkOrder(segments); err != nil {
-		return 0, err
-	}
-	offsets, err := s.offsets(segments)
+	stepper, err := s.Start(segments)
 	if err != nil {
 		return 0, err
 	}
-
-	t0 := s.clock.Now()
 	emitted := 0
-	for i, segment := range segments {
-		if err := ctx.Err(); err != nil {
-			return emitted, &Error{Stage: StageCancelled, SegmentID: segment.SegmentID, Err: err}
+	for {
+		emission, err := stepper.Next(ctx)
+		if errors.Is(err, io.EOF) {
+			return emitted, nil
 		}
-		due := t0.Add(offsets[i])
-		if wait := due.Sub(s.clock.Now()); wait > 0 {
-			if err := s.clock.Sleep(ctx, wait); err != nil {
-				return emitted, &Error{Stage: StageCancelled, SegmentID: segment.SegmentID, Err: err}
-			}
+		if err != nil {
+			return emitted, err
 		}
-		if err := ctx.Err(); err != nil {
-			return emitted, &Error{Stage: StageCancelled, SegmentID: segment.SegmentID, Err: err}
-		}
-		emission := Emission{Sequence: i, Segment: segment, DueAt: due, EmittedAt: s.clock.Now()}
 		if err := emit(emission); err != nil {
-			return emitted, &Error{Stage: StageEmit, SegmentID: segment.SegmentID, Err: err}
+			return emitted, &Error{Stage: StageEmit, SegmentID: emission.Segment.SegmentID, Err: err}
 		}
 		emitted++
 	}
-	return emitted, nil
 }
+
+// Stepper releases the segments of one replay to a consumer that pulls them,
+// on the same schedule as Replay: t0 is the Start call and segment i is due at
+// t0 + endMs_i / Speed. A consumer that pulls late gets the segment
+// immediately, so processing time shows up as lateness (EmittedAt after DueAt)
+// and never as a dropped or reordered segment. A Stepper is not safe for
+// concurrent use.
+type Stepper struct {
+	sim      *Simulator
+	segments []contracts.MediaSegment
+	offsets  []time.Duration
+	t0       time.Time
+	next     int
+}
+
+// Start validates segments and starts their schedule now.
+func (s *Simulator) Start(segments []contracts.MediaSegment) (*Stepper, error) {
+	if err := checkOrder(segments); err != nil {
+		return nil, err
+	}
+	offsets, err := s.offsets(segments)
+	if err != nil {
+		return nil, err
+	}
+	return &Stepper{sim: s, segments: segments, offsets: offsets, t0: s.clock.Now()}, nil
+}
+
+// Next waits until the next segment is due and returns it. It returns io.EOF
+// after the last segment and a StageCancelled error when ctx is done, in which
+// case the segment is not released.
+func (st *Stepper) Next(ctx context.Context) (Emission, error) {
+	if st.next >= len(st.segments) {
+		return Emission{}, io.EOF
+	}
+	i := st.next
+	segment := st.segments[i]
+	if err := ctx.Err(); err != nil {
+		return Emission{}, &Error{Stage: StageCancelled, SegmentID: segment.SegmentID, Err: err}
+	}
+	due := st.t0.Add(st.offsets[i])
+	if wait := due.Sub(st.sim.clock.Now()); wait > 0 {
+		if err := st.sim.clock.Sleep(ctx, wait); err != nil {
+			return Emission{}, &Error{Stage: StageCancelled, SegmentID: segment.SegmentID, Err: err}
+		}
+	}
+	if err := ctx.Err(); err != nil {
+		return Emission{}, &Error{Stage: StageCancelled, SegmentID: segment.SegmentID, Err: err}
+	}
+	st.next++
+	return Emission{Sequence: i, Segment: segment, DueAt: due, EmittedAt: st.sim.clock.Now()}, nil
+}
+
+// StartedAt is the schedule origin t0.
+func (st *Stepper) StartedAt() time.Time { return st.t0 }
 
 func (s *Simulator) offsets(segments []contracts.MediaSegment) ([]time.Duration, error) {
 	offsets := make([]time.Duration, len(segments))

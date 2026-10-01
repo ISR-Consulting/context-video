@@ -48,6 +48,25 @@ without explicit repository-storage authorization and a targeted ignore
 exception. The loader performs no downloads and never opens host paths; local
 and fixture references are resolved only through its supplied `fs.FS`.
 
+## Recording and annotating (M08)
+
+The POC Golden Dataset `poc-golden` v1.0 is not committed yet: its clips and
+annotations come from the dataset owner.
+
+1. Record each clip with `scripts/m08-record-clip.sh` (fixed 60–120 s, one
+   video and one audio stream, into `dataset/media/`, which stays git-ignored).
+   It prints the manifest `testCases` entry with the clip's `sha256` and
+   `durationMs`.
+2. Copy `templates/poc-golden-v1.0.json` to `manifests/` and add the entries.
+3. Write `ground-truth/poc-golden/<test-case-id>.json` from
+   `templates/ground-truth.json`, following
+   [`ANNOTATION-GUIDELINES.md`](ANNOTATION-GUIDELINES.md) v1.0.
+4. Check it: `go run ./cmd/harness --pipeline validation-only --config
+   configs/experiments/multimodal-5s.yaml --manifest
+   manifests/poc-golden-v1.0.json --output /tmp/check`.
+
+Manifests and ground truth may be committed; media may not.
+
 ## Loading
 
 `internal/evaluation/dataset.NewLoader` accepts separate dataset and schema

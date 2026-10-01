@@ -22,7 +22,7 @@ func TestCommittedExperimentConfigsLoadUnchanged(t *testing.T) {
 			want: Config{
 				ExperimentID: "E01", ExperimentName: "audio-only-5s",
 				IngestionMode: IngestionLiveSimulation, WindowSizeRaw: "5s", WindowSize: 5 * time.Second,
-				Audio:          AudioConfig{Enabled: true, Provider: "TBD"},
+				Audio:          AudioConfig{Enabled: true, Provider: "whisper-cpp"},
 				FusionProvider: "llama-cpp", ContextEventSelector: "v1", ContextEventSchemaVersion: "1.0",
 			},
 		},
@@ -31,21 +31,21 @@ func TestCommittedExperimentConfigsLoadUnchanged(t *testing.T) {
 			want: Config{
 				ExperimentID: "E02", ExperimentName: "vision-only-5s",
 				IngestionMode: IngestionLiveSimulation, WindowSizeRaw: "5s", WindowSize: 5 * time.Second,
-				Vision:         VisionConfig{Enabled: true, Provider: "TBD", Sampling: "TBD"},
+				Vision:         VisionConfig{Enabled: true, Provider: "llama-mtmd", Sampling: "uniform:2"},
 				FusionProvider: "llama-cpp", ContextEventSelector: "v1", ContextEventSchemaVersion: "1.0",
 			},
 		},
 		{
 			file: "multimodal-2s.yaml",
-			want: multimodal("E03", "multimodal-2s", "2s", 2*time.Second),
+			want: multimodal("E03", "multimodal-2s", "2s", 2*time.Second, "uniform:1"),
 		},
 		{
 			file: "multimodal-5s.yaml",
-			want: multimodal("E04", "multimodal-5s", "5s", 5*time.Second),
+			want: multimodal("E04", "multimodal-5s", "5s", 5*time.Second, "uniform:2"),
 		},
 		{
 			file: "multimodal-10s.yaml",
-			want: multimodal("E05", "multimodal-10s", "10s", 10*time.Second),
+			want: multimodal("E05", "multimodal-10s", "10s", 10*time.Second, "uniform:4"),
 		},
 	}
 	entries, err := os.ReadDir(experimentsDir)
@@ -74,12 +74,12 @@ func TestCommittedExperimentConfigsLoadUnchanged(t *testing.T) {
 	}
 }
 
-func multimodal(id, name, raw string, size time.Duration) Config {
+func multimodal(id, name, raw string, size time.Duration, sampling string) Config {
 	return Config{
 		ExperimentID: id, ExperimentName: name,
 		IngestionMode: IngestionLiveSimulation, WindowSizeRaw: raw, WindowSize: size,
-		Audio:          AudioConfig{Enabled: true, Provider: "TBD"},
-		Vision:         VisionConfig{Enabled: true, Provider: "TBD", Sampling: "TBD"},
+		Audio:          AudioConfig{Enabled: true, Provider: "whisper-cpp"},
+		Vision:         VisionConfig{Enabled: true, Provider: "llama-mtmd", Sampling: sampling},
 		FusionProvider: "llama-cpp", ContextEventSelector: "v1", ContextEventSchemaVersion: "1.0",
 	}
 }

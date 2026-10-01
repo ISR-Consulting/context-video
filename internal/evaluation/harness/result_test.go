@@ -37,7 +37,7 @@ func TestEncodeResultIsCanonicalAndSchemaValid(t *testing.T) {
   "configuration": {
     "audio": {
       "enabled": true,
-      "provider": "TBD"
+      "provider": "whisper-cpp"
     },
     "dataset": {
       "datasetId": "poc-golden",
@@ -59,8 +59,8 @@ func TestEncodeResultIsCanonicalAndSchemaValid(t *testing.T) {
     },
     "vision": {
       "enabled": true,
-      "provider": "TBD",
-      "sampling": "TBD"
+      "provider": "llama-mtmd",
+      "sampling": "uniform:2"
     },
     "window": {
       "size": "5s"
