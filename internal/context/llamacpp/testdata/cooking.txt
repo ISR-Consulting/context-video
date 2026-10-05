@@ -1,3 +1,1 @@
-{"events":[{"entities":[{"type":"ACTIVITY","value":"cooking","confidence":0.85}],"topics":[{"value":"cooking","confidence":0.9}],"objects":[{"value":"olive_oil","confidence":0.8}],"brands":[],"confidence":0.8,"evidence":[{"observationId":"aud:vod-cooking-001:10000-15000"},{"observationId":"vis:vod-cooking-001:10000-15000","timestampMs":11250}]}]} [end of text]
-
-
+{"events":[{"entities":[{"type":"PERSON","value":"Ana Maria","confidence":0.4,"sources":["a1"]}],"topics":[{"value":"cooking","confidence":0.9,"sources":["a1","v1"]}],"objects":[{"value":"olive_oil","confidence":0.8,"sources":["v1"]}],"brands":[],"confidence":0.8}]} [end of text]

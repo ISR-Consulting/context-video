@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"regexp"
+	"slices"
 
 	contextcore "github.com/ISR-Consulting/context-video/internal/context"
 )
@@ -29,31 +31,33 @@ type answerEvent struct {
 	Objects    *[]answerValue  `json:"objects"`
 	Brands     *[]answerValue  `json:"brands"`
 	Confidence *float64        `json:"confidence"`
-	Evidence   *[]answerRef    `json:"evidence"`
 }
 
 type answerEntity struct {
 	Type       string   `json:"type"`
 	Value      string   `json:"value"`
 	Confidence *float64 `json:"confidence"`
+	Sources    []string `json:"sources"`
 }
 
 type answerValue struct {
 	Value      string   `json:"value"`
 	Confidence *float64 `json:"confidence"`
+	Sources    []string `json:"sources"`
 }
 
-type answerRef struct {
-	ObservationID string `json:"observationId"`
-	TimestampMs   *int64 `json:"timestampMs"`
-}
+var labelRE = regexp.MustCompile(labelPattern)
 
 // parseAnswer strictly decodes one model answer into candidates. The trailing
 // end-of-text marker and a single surrounding Markdown code fence are
 // tolerated; anything else that is not exactly one conforming JSON object is
-// an error. Values are not trimmed, clamped or defaulted; grounding against
-// the evidence is left to the core.
-func parseAnswer(stdout []byte, meta contextcore.ReasoningMetadata) ([]contextcore.Candidate, error) {
+// an error. Values are not trimmed, clamped or defaulted.
+//
+// Every item must cite at least one of srcs by key, and a candidate's
+// evidence is the union of its items' sources in source order, so a label
+// read from a frame always brings that frame into the event's evidence.
+// Grounding against the evidence group is still left to the core.
+func parseAnswer(stdout []byte, meta contextcore.ReasoningMetadata, srcs []source) ([]contextcore.Candidate, error) {
 	body := bytes.TrimSpace(stdout)
 	body = bytes.TrimSpace(bytes.TrimSuffix(body, endOfText))
 	body = unfence(body)
@@ -91,9 +95,6 @@ func parseAnswer(stdout []byte, meta contextcore.ReasoningMetadata) ([]contextco
 		case ev.Brands == nil:
 			missing("brands")
 			continue
-		case ev.Evidence == nil:
-			missing("evidence")
-			continue
 		}
 		c := contextcore.Candidate{
 			Confidence: ev.Confidence,
@@ -102,23 +103,53 @@ func parseAnswer(stdout []byte, meta contextcore.ReasoningMetadata) ([]contextco
 			Topics:     values(*ev.Topics),
 			Objects:    values(*ev.Objects),
 			Brands:     values(*ev.Brands),
-			Evidence:   make([]contextcore.EvidenceRef, 0, len(*ev.Evidence)),
+		}
+		cited := make([]bool, len(srcs))
+		cite := func(item string, keys []string) {
+			if len(keys) == 0 {
+				errs = append(errs, fmt.Errorf("%s: no sources", item))
+			}
+			for _, k := range keys {
+				i := slices.IndexFunc(srcs, func(s source) bool { return s.key == k })
+				if i < 0 {
+					errs = append(errs, fmt.Errorf("%s: unknown source %q", item, k))
+					continue
+				}
+				cited[i] = true
+			}
 		}
 		errs = checkConfidence(errs, where+".confidence", ev.Confidence)
 		for j, e := range *ev.Entities {
-			errs = checkConfidence(errs, fmt.Sprintf("%s.entities[%d].confidence", where, j), e.Confidence)
+			item := fmt.Sprintf("%s.entities[%d]", where, j)
+			errs = checkConfidence(errs, item+".confidence", e.Confidence)
+			if !slices.Contains(EntityTypes, e.Type) {
+				errs = append(errs, fmt.Errorf("%s: type %q is not one of %v", item, e.Type, EntityTypes))
+			}
+			cite(item, e.Sources)
 			c.Entities = append(c.Entities, contextcore.Entity{Type: e.Type, Value: e.Value, Confidence: e.Confidence})
 		}
+		items := 0
 		for _, list := range []struct {
 			name   string
 			values []answerValue
 		}{{"topics", *ev.Topics}, {"objects", *ev.Objects}, {"brands", *ev.Brands}} {
 			for j, v := range list.values {
-				errs = checkConfidence(errs, fmt.Sprintf("%s.%s[%d].confidence", where, list.name, j), v.Confidence)
+				item := fmt.Sprintf("%s.%s[%d]", where, list.name, j)
+				errs = checkConfidence(errs, item+".confidence", v.Confidence)
+				if !labelRE.MatchString(v.Value) {
+					errs = append(errs, fmt.Errorf("%s: %q is not a lowercase snake_case label", item, v.Value))
+				}
+				cite(item, v.Sources)
+				items++
 			}
 		}
-		for _, ref := range *ev.Evidence {
-			c.Evidence = append(c.Evidence, contextcore.EvidenceRef{ObservationID: ref.ObservationID, TimestampMs: ref.TimestampMs})
+		if items+len(*ev.Entities) == 0 {
+			errs = append(errs, fmt.Errorf("%s: no entities, topics, objects or brands", where))
+		}
+		for i, s := range srcs {
+			if cited[i] {
+				c.Evidence = append(c.Evidence, contextcore.EvidenceRef{ObservationID: s.ref.ObservationID, TimestampMs: s.ref.TimestampMs})
+			}
 		}
 		candidates = append(candidates, c)
 	}
