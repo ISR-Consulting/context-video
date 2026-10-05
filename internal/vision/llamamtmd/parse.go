@@ -17,7 +17,7 @@ import (
 // maxExcerpt bounds the model output quoted in parse errors.
 const maxExcerpt = 512
 
-// answer is the document the prompt and ResponseSchema ask for.
+// answer is the document the prompt and Grammar ask for.
 type answer struct {
 	Description  *string `json:"description"`
 	Observations *[]struct {
@@ -54,6 +54,9 @@ func parseAnswer(stdout []byte, timestampMs int64) (vision.Frame, error) {
 	if a.Description != nil {
 		frame.Description = strings.TrimSpace(*a.Description)
 	}
+	if len(*a.Observations) > MaxDetections {
+		errs = append(errs, fmt.Errorf("%d observations, more than the %d allowed", len(*a.Observations), MaxDetections))
+	}
 	for i, o := range *a.Observations {
 		t := contracts.VisualDetectionType(o.Type)
 		value := strings.TrimSpace(o.Value)
@@ -62,6 +65,8 @@ func parseAnswer(stdout []byte, timestampMs int64) (vision.Frame, error) {
 			errs = append(errs, fmt.Errorf("observation %d: type %q is not one of %v", i, o.Type, types))
 		case value == "":
 			errs = append(errs, fmt.Errorf("observation %d: blank value", i))
+		case slices.Contains(snakeTypes, t) && !isSnake(value):
+			errs = append(errs, fmt.Errorf("observation %d: %s value %q is not lowercase snake_case", i, t, value))
 		case o.Confidence == nil:
 			errs = append(errs, fmt.Errorf("observation %d: missing confidence", i))
 		case math.IsNaN(*o.Confidence) || *o.Confidence < 0 || *o.Confidence > 1:

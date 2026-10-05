@@ -146,17 +146,20 @@ func TestReasonInvocationAndParsing(t *testing.T) {
 	if r.files["-sysf"] != SystemPrompt {
 		t.Fatal("system prompt file differs from SystemPrompt")
 	}
-	for _, rule := range []string{"uncalibrated model outputs, not probabilities", "Do not average them", "Never propose products, prices, retailers, offers"} {
+	for _, rule := range []string{
+		"own judgement", "do not give every item the same value", "uncalibrated model outputs, not probabilities", "Never propose products, prices, retailers, offers",
+		"PERSON, SPORTS_TEAM, ORGANIZATION, PLACE, EVENT", "lowercase snake_case", "cite both", "must cite that frame",
+	} {
 		if !strings.Contains(SystemPrompt, rule) {
 			t.Fatalf("prompt lacks %q", rule)
 		}
 	}
-	wantUser := `Evidence:
-{"contentId":"vod-cooking-001","window":{"startMs":10000,"endMs":15000},"evidence":[` +
-		`{"kind":"AUDIO","observationId":"aud:vod-cooking-001:10000-15000","facet":"TRANSCRIPT","text":"agora vou colocar o azeite","language":"pt"},` +
-		`{"kind":"VISUAL","observationId":"vis:vod-cooking-001:10000-15000","timestampMs":11250,"facet":"FRAME_DESCRIPTION","text":"hand pouring oil into a pan"},` +
-		`{"kind":"VISUAL","observationId":"vis:vod-cooking-001:10000-15000","timestampMs":11250,"facet":"DETECTION","type":"OBJECT","value":"olive_oil_bottle","confidence":0.87},` +
-		`{"kind":"VISUAL","observationId":"vis:vod-cooking-001:10000-15000","timestampMs":13750,"facet":"DETECTION","type":"ACTION","value":"pouring","confidence":0.84}]}`
+	// Sources carry no observation IDs and no perception confidences.
+	wantUser := `Sources:
+{"window":{"startMs":10000,"endMs":15000},"sources":[` +
+		`{"source":"a1","kind":"AUDIO","transcript":"agora vou colocar o azeite","language":"pt"},` +
+		`{"source":"v1","kind":"VISUAL","timestampMs":11250,"description":"hand pouring oil into a pan","detections":[{"type":"OBJECT","value":"olive_oil_bottle"}]},` +
+		`{"source":"v2","kind":"VISUAL","timestampMs":13750,"detections":[{"type":"ACTION","value":"pouring"}]}]}`
 	if r.files["-f"] != wantUser {
 		t.Fatalf("user prompt:\n%s\nwant\n%s", r.files["-f"], wantUser)
 	}
@@ -164,7 +167,9 @@ func TestReasonInvocationAndParsing(t *testing.T) {
 	if err := json.Unmarshal([]byte(r.files["--json-schema-file"]), &schema); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`"const":"aud:vod-cooking-001:10000-15000"`, `"const":"vis:vod-cooking-001:10000-15000"`, `"enum":[11250,13750]`, `"anyOf"`} {
+	for _, want := range []string{
+		`"enum":["a1","v1","v2"]`, `"enum":["PERSON","SPORTS_TEAM","ORGANIZATION","PLACE","EVENT"]`, `"pattern":"^[a-z0-9]+(_[a-z0-9]+)*$"`,
+	} {
 		if !strings.Contains(r.files["--json-schema-file"], want) {
 			t.Fatalf("schema lacks %s: %s", want, r.files["--json-schema-file"])
 		}
@@ -177,8 +182,11 @@ func TestReasonInvocationAndParsing(t *testing.T) {
 	if c.Reasoning != (contextcore.ReasoningMetadata{Provider: ProviderName, Model: "qwen2.5-7b-instruct-q4_k_m.gguf", PromptVersion: PromptVersion}) {
 		t.Fatalf("reasoning: %+v", c.Reasoning)
 	}
+	// Evidence is the union of the items' sources (a1, v1) in source order.
 	if *c.Confidence != 0.8 || c.Topics[0].Value != "cooking" || c.Objects[0].Value != "olive_oil" || len(c.Brands) != 0 ||
-		c.Entities[0].Type != "ACTIVITY" || len(c.Evidence) != 2 || c.Evidence[0].TimestampMs != nil || *c.Evidence[1].TimestampMs != 11250 {
+		c.Entities[0].Type != "PERSON" || *c.Entities[0].Confidence != 0.4 || len(c.Evidence) != 2 ||
+		c.Evidence[0].ObservationID != "aud:vod-cooking-001:10000-15000" || c.Evidence[0].TimestampMs != nil ||
+		c.Evidence[1].ObservationID != "vis:vod-cooking-001:10000-15000" || *c.Evidence[1].TimestampMs != 11250 {
 		t.Fatalf("candidate: %+v", c)
 	}
 	if err := contextcore.Ground(group, c); err != nil {
@@ -194,7 +202,7 @@ func TestResponseSchemaSingleModality(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(data), "anyOf") || strings.Contains(string(data), "aud:") {
+	if strings.Contains(string(data), `"a1"`) || !strings.Contains(string(data), `"enum":["v1","v2"]`) {
 		t.Fatalf("schema: %s", data)
 	}
 	again, _ := ResponseSchema(visualOnly)
@@ -214,12 +222,18 @@ func TestReasonParseFailures(t *testing.T) {
 		"two objects":       {`{"events":[]}{"events":[]}`, "unexpected data"},
 		"unknown field":     {`{"events":[],"note":"x"}`, "unknown field"},
 		"no events":         {`{}`, `no "events" array`},
-		"missing topics":    {`{"events":[{"entities":[],"objects":[],"brands":[],"confidence":0.5,"evidence":[]}]}`, `missing "topics"`},
-		"missing evidence":  {`{"events":[{"entities":[],"topics":[],"objects":[],"brands":[],"confidence":0.5}]}`, `missing "evidence"`},
-		"missing conf":      {`{"events":[{"entities":[],"topics":[{"value":"x"}],"objects":[],"brands":[],"confidence":0.5,"evidence":[]}]}`, "topics[0].confidence: missing"},
-		"event conf high":   {`{"events":[{"entities":[],"topics":[],"objects":[],"brands":[],"confidence":1.5,"evidence":[]}]}`, "outside [0, 1]"},
-		"entity field":      {`{"events":[{"entities":[{"type":"X","value":"y","confidence":1,"price":3}],"topics":[],"objects":[],"brands":[],"confidence":1,"evidence":[]}]}`, "unknown field"},
-		"timestamp as text": {`{"events":[{"entities":[],"topics":[],"objects":[],"brands":[],"confidence":1,"evidence":[{"observationId":"v","timestampMs":"1"}]}]}`, "decode model answer"},
+		"missing topics":    {`{"events":[{"entities":[],"objects":[],"brands":[],"confidence":0.5}]}`, `missing "topics"`},
+		"no items":          {`{"events":[{"entities":[],"topics":[],"objects":[],"brands":[],"confidence":0.5}]}`, "no entities, topics, objects or brands"},
+		"missing conf":      {`{"events":[{"entities":[],"topics":[{"value":"x","sources":["a1"]}],"objects":[],"brands":[],"confidence":0.5}]}`, "topics[0].confidence: missing"},
+		"event conf high":   {`{"events":[{"entities":[],"topics":[{"value":"x","confidence":1,"sources":["a1"]}],"objects":[],"brands":[],"confidence":1.5}]}`, "outside [0, 1]"},
+		"entity field":      {`{"events":[{"entities":[{"type":"PERSON","value":"y","confidence":1,"sources":["a1"],"price":3}],"topics":[],"objects":[],"brands":[],"confidence":1}]}`, "unknown field"},
+		"v1 evidence field": {`{"events":[{"entities":[],"topics":[{"value":"x","confidence":1,"sources":["a1"]}],"objects":[],"brands":[],"confidence":1,"evidence":[]}]}`, `unknown field "evidence"`},
+		"open entity type":  {`{"events":[{"entities":[{"type":"ACTIVITY","value":"cooking","confidence":1,"sources":["a1"]}],"topics":[],"objects":[],"brands":[],"confidence":1}]}`, `type "ACTIVITY" is not one of`},
+		"label with space":  {`{"events":[{"entities":[],"topics":[{"value":"soccer match","confidence":1,"sources":["a1"]}],"objects":[],"brands":[],"confidence":1}]}`, "not a lowercase snake_case label"},
+		"label not english": {`{"events":[{"entities":[],"topics":[],"objects":[],"brands":[{"value":"Sérvia","confidence":1,"sources":["a1"]}],"confidence":1}]}`, "not a lowercase snake_case label"},
+		"no sources":        {`{"events":[{"entities":[],"topics":[{"value":"x","confidence":1,"sources":[]}],"objects":[],"brands":[],"confidence":1}]}`, "topics[0]: no sources"},
+		"missing sources":   {`{"events":[{"entities":[],"topics":[{"value":"x","confidence":1}],"objects":[],"brands":[],"confidence":1}]}`, "topics[0]: no sources"},
+		"unknown source":    {`{"events":[{"entities":[],"topics":[{"value":"x","confidence":1,"sources":["v9"]}],"objects":[],"brands":[],"confidence":1}]}`, `unknown source "v9"`},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -257,16 +271,23 @@ func TestReasonAcceptedAnswerForms(t *testing.T) {
 	}
 }
 
-func TestReasonDoesNotValidateGroundingItself(t *testing.T) {
-	stdout := `{"events":[{"entities":[],"topics":[{"value":"x","confidence":0.5}],"objects":[],"brands":[],"confidence":0.5,"evidence":[{"observationId":"vis:ghost","timestampMs":1}]}]}`
+func TestReasonCandidatesCiteFramesOfVisualLabels(t *testing.T) {
+	// The brand comes from frame v2 and the topic from the transcript: the
+	// candidate's evidence must contain both, and the core grounds it.
+	stdout := `{"events":[{"entities":[],"topics":[{"value":"cooking","confidence":0.7,"sources":["a1"]}],"objects":[],` +
+		`"brands":[{"value":"gallo","confidence":0.5,"sources":["v2","v2"]}],"confidence":0.6}]}`
 	a, _ := newAdapter(t, &fakeRunner{stdout: []byte(stdout)}, Config{})
 	group := testGroup(t)
 	candidates, err := a.Reason(context.Background(), group)
 	if err != nil || len(candidates) != 1 {
 		t.Fatalf("%v %v", candidates, err)
 	}
-	if err := contextcore.Ground(group, candidates[0]); err == nil || !strings.Contains(err.Error(), "unknown observationId") {
-		t.Fatalf("core grounding must reject: %v", err)
+	ev := candidates[0].Evidence
+	if len(ev) != 2 || ev[0].TimestampMs != nil || *ev[1].TimestampMs != 13750 {
+		t.Fatalf("evidence %+v", ev)
+	}
+	if err := contextcore.Ground(group, candidates[0]); err != nil {
+		t.Fatalf("grounding: %v", err)
 	}
 }
 

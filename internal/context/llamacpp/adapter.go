@@ -167,7 +167,7 @@ func (a *Adapter) Reason(ctx context.Context, group contextcore.EvidenceGroup) (
 		Provider:      ProviderName,
 		Model:         a.Model(),
 		PromptVersion: PromptVersion,
-	})
+	}, sources(group))
 	if err != nil {
 		return nil, &Error{Step: StepParse, SegmentID: group.SegmentID, Output: excerpt(stdout), Err: err}
 	}

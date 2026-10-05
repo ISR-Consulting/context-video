@@ -94,7 +94,7 @@ func WithTempDir(dir string) AdapterOption {
 }
 
 // New returns an Adapter for cfg. Model and MMProj are required; other fields
-// default to llama-mtmd-cli, ffmpeg, 512 answer tokens and a 768 px edge.
+// default to llama-mtmd-cli, ffmpeg, 1024 answer tokens and a 768 px edge.
 func New(cfg Config, opts ...AdapterOption) (*Adapter, error) {
 	cfg, err := cfg.withDefaults()
 	if err != nil {
@@ -180,7 +180,7 @@ func (a *Adapter) Analyze(ctx context.Context, req vision.Request) (vision.Analy
 			}
 			return fail(StepExtract, &t, stderr, fmt.Errorf("%s: %w", a.cfg.FFmpeg, err))
 		}
-		stdout, stderr, err := a.runner.Run(ctx, a.cfg.Binary, a.llamaArgs(image))
+		stdout, stderr, err := a.runner.Run(ctx, a.cfg.Binary, a.llamaArgs(image, FramePrompt(frames)))
 		if err != nil {
 			if ctxErr := ctx.Err(); ctxErr != nil {
 				return vision.Analysis{}, ctxErr
@@ -213,13 +213,13 @@ func (a *Adapter) ffmpegArgs(input string, timestampMs int64, image string) []st
 	}
 }
 
-func (a *Adapter) llamaArgs(image string) []string {
+func (a *Adapter) llamaArgs(image, prompt string) []string {
 	args := []string{
 		"-m", a.cfg.Model,
 		"--mmproj", a.cfg.MMProj,
 		"--image", image,
-		"-p", Prompt,
-		"--json-schema", ResponseSchema,
+		"-p", prompt,
+		"--grammar", Grammar,
 		"--temp", "0",
 		"--seed", "0",
 		"-n", strconv.Itoa(a.cfg.MaxTokens),

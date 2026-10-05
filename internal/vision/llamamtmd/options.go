@@ -26,7 +26,7 @@ const (
 const (
 	defaultBinary    = "llama-mtmd-cli"
 	defaultFFmpeg    = "ffmpeg"
-	defaultMaxTokens = 512
+	defaultMaxTokens = 1024
 	defaultMaxEdge   = 768
 )
 
@@ -43,7 +43,7 @@ type Config struct {
 	Threads int
 	// GPULayers is passed as -ngl when non-nil; nil keeps the llama.cpp default.
 	GPULayers *int
-	// MaxTokens bounds the generated answer (-n); 0 means 512.
+	// MaxTokens bounds the generated answer (-n); 0 means 1024.
 	MaxTokens int
 	// MaxEdge bounds the longer frame edge in pixels; 0 means 768.
 	MaxEdge int

@@ -169,8 +169,14 @@ roughly constant frame density: E02 and E04 `uniform:2`, E03 `uniform:1`, E05
 The first adapter runs a local GGUF vision-language model (for example
 Qwen2.5-VL) through `llama-mtmd-cli`. For each frame, ffmpeg (file protocol
 only) extracts one JPEG and `llama-mtmd-cli` answers the versioned prompt
-`vision-frame-v1` (`internal/vision/llamamtmd/prompt.go`) with JSON constrained
-by `--json-schema` to the contract types, at temperature 0 and a fixed seed.
+`vision-frame-v2` (`internal/vision/llamamtmd/prompt.go`) at temperature 0 and
+a fixed seed. A GBNF grammar (`--grammar`) admits only compact JSON (no
+indentation, so no tokens spent on whitespace), the contract types, at most 12
+detections, and lowercase snake_case values for `OBJECT`, `TOPIC`, `SCENE` and
+`ACTION`. The prompt asks for brands as `BRAND` rather than `TEXT` and for no
+running clocks; later frames of a window are told which `ENTITY`, `BRAND` and
+`TEXT` values an earlier frame already reported, so scoreboards and boards are
+not repeated unless they change.
 The answer is parsed strictly: unknown fields or types, blank values, a
 missing or out-of-range confidence, or anything that is not exactly one JSON
 object fail the run with the segment, frame and an excerpt of the output.
@@ -191,7 +197,7 @@ the observation provenance contract has no prompt field.
 | `ffmpeg` | `ffmpeg` on `PATH` | frame extraction |
 | `threads` | llama.cpp default | `-t` |
 | `gpu-layers` | llama.cpp default | `-ngl` |
-| `max-tokens` | `512` | answer token limit (`-n`); the M08 runbook passes `1024` |
+| `max-tokens` | `1024` | answer token limit (`-n`) |
 | `max-edge` | `768` | longest frame edge in pixels |
 | `ctx-size` | llama.cpp default | context size (`-c`); M08 pins `4096` |
 
@@ -283,10 +289,18 @@ are set too (see above), so the committed files run as they are.
 The first reasoner runs a local GGUF instruction-tuned text model through
 llama.cpp's non-interactive `llama-completion`. For each window it runs one
 single-turn chat (`-cnv -st`) with the versioned system prompt
-`context-reasoning-v1` (`internal/context/llamacpp/prompt.go`), the window's
-evidence as compact JSON and a per-window JSON schema (`--json-schema-file`)
-that restricts citations to that window's observation IDs and frame
-timestamps. Generation uses temperature 0, seed 0 and `--offline`; inherited
+`context-reasoning-v2` (`internal/context/llamacpp/prompt.go`), the window's
+evidence as compact JSON sources and a per-window JSON schema
+(`--json-schema-file`). Sources are keyed `a1`, `a2`, … (transcripts) and `v1`,
+`v2`, … (frames, with description and detections) and carry no observation IDs
+and no perception confidences, so the model cannot copy a perception score.
+The schema restricts entity types to the annotation guidelines' closed list
+(`PERSON`, `SPORTS_TEAM`, `ORGANIZATION`, `PLACE`, `EVENT`), topic, object and
+brand labels to English-style lowercase snake_case (proper names in entities
+stay as written; countries and national teams in English), and requires every
+item to list the source keys it comes from. A ContextEvent's evidence is the
+union of its items' sources, so a label read from a frame always cites that
+frame. Generation uses temperature 0, seed 0 and `--offline`; inherited
 `LLAMA_ARG_*` variables are removed and no download flag is passed, so nothing
 touches the network. The answer is parsed strictly (unknown fields, missing or
 out-of-range confidences, or anything but one JSON object fail the run).
@@ -418,6 +432,12 @@ Confidences in the raw artifacts are uncalibrated model self-assessments, not
 probabilities. Quality scoring against the ground truth is M09.
 
 ### Canonical run (MacBook Pro, 16 GB)
+
+Canonical runs must use the v2 prompts: `vision-frame-v2` and
+`context-reasoning-v2` (the latter is recorded in every ContextEvent's
+`provenance.promptVersion`). The trial runs `trial-football-01` and
+`trial-all-02` used the v1 prompts and are not comparable with canonical
+results.
 
 ```bash
 brew install llama.cpp whisper-cpp ffmpeg yt-dlp

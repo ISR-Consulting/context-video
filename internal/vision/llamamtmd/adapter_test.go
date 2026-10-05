@@ -2,13 +2,13 @@ package llamamtmd
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -174,9 +174,15 @@ func TestAnalyzeRunsFFmpegThenLlamaPerFrame(t *testing.T) {
 		if !reflect.DeepEqual(ffmpeg.args, wantFFmpeg) {
 			t.Fatalf("ffmpeg args:\n%q\nwant:\n%q", ffmpeg.args, wantFFmpeg)
 		}
+		// The second frame is told what the first already reported.
+		prompt := Prompt
+		if i == 1 {
+			prompt = Prompt + "\nAlready reported for an earlier frame of this window; omit these unless they changed: " +
+				`ENTITY "Palmeiras"; TEXT "PALMEIRAS 2 x 1 SANTOS".`
+		}
 		wantLlama := []string{
 			"-m", cfg.Model, "--mmproj", cfg.MMProj, "--image", image,
-			"-p", Prompt, "--json-schema", ResponseSchema,
+			"-p", prompt, "--grammar", Grammar,
 			"--temp", "0", "--seed", "0", "-n", "256", "-t", "8", "-ngl", "99", "-c", "4096",
 		}
 		if !reflect.DeepEqual(llama.args, wantLlama) {
@@ -211,7 +217,7 @@ func TestAnalyzeDefaults(t *testing.T) {
 		t.Fatalf("default max edge: %q", runner.calls[0].args)
 	}
 	llama := runner.calls[1].args
-	if i := slices.Index(llama, "-n"); llama[i+1] != "512" {
+	if i := slices.Index(llama, "-n"); llama[i+1] != "1024" {
 		t.Fatalf("default max tokens: %q", llama)
 	}
 	if slices.Contains(llama, "-t") || slices.Contains(llama, "-ngl") || slices.Contains(llama, "-c") {
@@ -219,38 +225,68 @@ func TestAnalyzeDefaults(t *testing.T) {
 	}
 }
 
-func TestResponseSchemaMatchesContractTypes(t *testing.T) {
-	var schema struct {
-		Properties struct {
-			Observations struct {
-				Items struct {
-					Required   []string `json:"required"`
-					Properties struct {
-						Type struct {
-							Enum []contracts.VisualDetectionType `json:"enum"`
-						} `json:"type"`
-					} `json:"properties"`
-				} `json:"items"`
-			} `json:"observations"`
-		} `json:"properties"`
-	}
-	if err := json.Unmarshal([]byte(ResponseSchema), &schema); err != nil {
-		t.Fatal(err)
-	}
-	items := schema.Properties.Observations.Items
-	if !reflect.DeepEqual(items.Properties.Type.Enum, vision.DetectionTypes()) {
-		t.Fatalf("enum %v", items.Properties.Type.Enum)
-	}
-	if !slices.Contains(items.Required, "confidence") {
-		t.Fatal("schema does not require confidence")
-	}
+func TestPromptAndGrammarMatchContractTypes(t *testing.T) {
 	for _, typ := range vision.DetectionTypes() {
 		if !strings.Contains(Prompt, string(typ)+":") {
 			t.Errorf("prompt does not describe %s", typ)
 		}
+		if !strings.Contains(Grammar, `"`+string(typ)+`"`) {
+			t.Errorf("grammar does not admit %s", typ)
+		}
 	}
-	if PromptVersion == "" {
-		t.Fatal("blank prompt version")
+	for _, typ := range snakeTypes {
+		if !strings.Contains(Grammar, `"`+string(typ)+`"`) || !slices.Contains(vision.DetectionTypes(), typ) {
+			t.Errorf("snake_case type %s is not a contract type in the grammar", typ)
+		}
+	}
+	if !strings.Contains(Grammar, "{0,"+strconv.Itoa(MaxDetections-1)+"}") {
+		t.Errorf("grammar does not cap detections at %d", MaxDetections)
+	}
+	if PromptVersion != "vision-frame-v2" {
+		t.Fatalf("prompt version %q", PromptVersion)
+	}
+}
+
+func TestFramePromptListsRepeatedDetectionsOnce(t *testing.T) {
+	if FramePrompt(nil) != Prompt {
+		t.Fatal("first frame prompt differs from Prompt")
+	}
+	earlier := []vision.Frame{
+		{Detections: []vision.Detection{
+			{Type: contracts.VisualDetectionBrand, Value: "bitvavo"},
+			{Type: contracts.VisualDetectionObject, Value: "ball"},
+			{Type: contracts.VisualDetectionText, Value: `GER "2" - 0 SRB`},
+		}},
+		{Detections: []vision.Detection{{Type: contracts.VisualDetectionBrand, Value: "bitvavo"}, {Type: contracts.VisualDetectionEntity, Value: "Germany"}}},
+	}
+	got := FramePrompt(earlier)
+	want := Prompt + "\nAlready reported for an earlier frame of this window; omit these unless they changed: " +
+		`BRAND "bitvavo"; TEXT "GER \"2\" - 0 SRB"; ENTITY "Germany".`
+	if got != want {
+		t.Fatalf("prompt suffix:\n%s", strings.TrimPrefix(got, Prompt))
+	}
+}
+
+func TestParseRejectsV2Violations(t *testing.T) {
+	var many []string
+	for i := 0; i <= MaxDetections; i++ {
+		many = append(many, fmt.Sprintf(`{"type":"TEXT","value":"t%d","confidence":0.5}`, i))
+	}
+	for name, tc := range map[string]struct{ answer, want string }{
+		"too many":          {`{"description":"d","observations":[` + strings.Join(many, ",") + `]}`, "more than the 12 allowed"},
+		"object not snake":  {`{"description":"d","observations":[{"type":"OBJECT","value":"Football Jersey","confidence":0.5}]}`, "not lowercase snake_case"},
+		"action sentence":   {`{"description":"d","observations":[{"type":"ACTION","value":"a player kicks","confidence":0.5}]}`, "not lowercase snake_case"},
+		"double underscore": {`{"description":"d","observations":[{"type":"TOPIC","value":"foot__ball","confidence":0.5}]}`, "not lowercase snake_case"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := parseAnswer([]byte(tc.answer), 1000); err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("err %v, want %q", err, tc.want)
+			}
+		})
+	}
+	frame, err := parseAnswer([]byte(`{"description":"d","observations":[{"type":"BRAND","value":"Adidas","confidence":0.5},{"type":"TEXT","value":"GER 2 - 0 SRB","confidence":0.5},{"type":"ENTITY","value":"Germany","confidence":0.5},{"type":"OBJECT","value":"goal_post_2","confidence":0.5}]}`), 1000)
+	if err != nil || len(frame.Detections) != 4 {
+		t.Fatalf("valid v2 answer: %v %+v", err, frame)
 	}
 }
 
