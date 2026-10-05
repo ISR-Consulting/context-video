@@ -4,8 +4,12 @@
 //
 // For each requested frame, ffmpeg extracts one JPEG at the frame timestamp of
 // a local media file and llama-mtmd-cli answers a versioned prompt
-// ([PromptVersion]) with a JSON document constrained by --json-schema to the
-// VisualObservation detection types. The answer is read from stdout, parsed
+// ([PromptVersion]) with one compact JSON document constrained by a GBNF
+// grammar ([Grammar]) to the VisualObservation detection types, at most
+// [MaxDetections] detections and lowercase snake_case values for OBJECT,
+// TOPIC, SCENE and ACTION. Later frames of a window are told which ENTITY,
+// BRAND and TEXT values an earlier frame already reported ([FramePrompt]), so
+// persistent overlays are not repeated in every frame. The answer is read from stdout, parsed
 // strictly and mapped onto provider-neutral vision.Frame values. A frame whose
 // answer is malformed, uses an unknown type or omits a confidence fails the
 // whole request; nothing is repaired or defaulted.
