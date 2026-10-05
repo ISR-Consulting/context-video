@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# M08 runbook: runs E01–E05 with Live pacing plus an E04 VOD (instant) rerun
-# through the harness multimodal pipeline, with one set of models, and writes
+# M08 runbook: runs E01–E05 with Live pacing (or instant pacing with
+# --pacing instant) plus an E04 VOD (instant) rerun through the harness
+# multimodal pipeline, with one set of models, and writes
 # every artifact outside the repository.
 #
 # usage: scripts/m08-run.sh --run-id ID [options]
@@ -11,6 +12,8 @@
 #   --manifest PATH      relative to --dataset-root; default manifests/poc-golden-v1.0.json
 #   --models-dir DIR     default ~/models
 #   --experiments LIST   comma-separated subset, default E01,E02,E04,E05,E03
+#   --pacing P           live (default; output under live/) or instant (output under
+#                        vod/; the separate E04 VOD rerun and H4 check are then skipped)
 #   --speed X            live pacing speed, default 1 (real time)
 #   --on-segment-error P record (default) or fail
 #   --cost-per-hour USD  optional host price for costPerVideoHour
@@ -23,6 +26,7 @@
 #   WHISPER_MODEL (ggml-large-v3-turbo.bin)  WHISPER_LANGUAGE (pt)
 #   VLM_MODEL (Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf)
 #   VLM_MMPROJ (mmproj-Qwen2.5-VL-7B-Instruct-f16.gguf)  VLM_CTX_SIZE (4096)
+#   VLM_MAX_TOKENS (1024): vision answer limit; 512 truncates frames with many detections
 #   LLM_MODEL (Qwen2.5-7B-Instruct-Q4_K_M.gguf)  LLM_CTX_SIZE (8192)
 #   WHISPER_CLI, LLAMA_MTMD_CLI, LLAMA_COMPLETION, FFMPEG: binaries (default: on PATH)
 #
@@ -37,7 +41,9 @@ dataset_root="dataset"
 manifest="manifests/poc-golden-v1.0.json"
 models_dir="$HOME/models"
 experiments="E01,E02,E04,E05,E03"
+pacing="live"
 speed="1"
+speed_set=0
 segment_errors="record"
 cost=""
 threads=""
@@ -51,17 +57,27 @@ while [ $# -gt 0 ]; do
     --manifest) manifest="${2:?}"; shift 2 ;;
     --models-dir) models_dir="${2:?}"; shift 2 ;;
     --experiments) experiments="${2:?}"; shift 2 ;;
-    --speed) speed="${2:?}"; shift 2 ;;
+    --pacing) pacing="${2:?}"; shift 2 ;;
+    --speed) speed="${2:?}"; speed_set=1; shift 2 ;;
     --on-segment-error) segment_errors="${2:?}"; shift 2 ;;
     --cost-per-hour) cost="${2:?}"; shift 2 ;;
     --threads) threads="${2:?}"; shift 2 ;;
     --no-vod) vod=0; shift ;;
     --dry-run) dry=1; shift ;;
-    -h|--help) sed -n '2,31p' "$0"; exit 0 ;;
+    -h|--help) awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"; exit 0 ;;
     *) die "unknown argument $1 (see --help)" ;;
   esac
 done
 [ -n "$run_id" ] || die "--run-id is required"
+case "$pacing" in
+  live) pacing_dir="live" ;;
+  instant)
+    pacing_dir="vod"
+    [ "$speed_set" -eq 0 ] || die "--speed is only valid with --pacing live"
+    vod=0
+    ;;
+  *) die "unknown --pacing $pacing; available: live, instant" ;;
+esac
 case "$run_id" in *[!A-Za-z0-9._-]*|.*) die "--run-id must match [A-Za-z0-9][A-Za-z0-9._-]*" ;; esac
 
 repo="$(cd "$(dirname "$0")/.." && pwd -P)"
@@ -110,7 +126,7 @@ harness_args() {
   fi
   if [ "$exp" != E01 ]; then
     printf '%s\n' --vision-option "model=$vlm_model" --vision-option "mmproj=$vlm_mmproj" \
-      --vision-option "ctx-size=${VLM_CTX_SIZE:-4096}"
+      --vision-option "ctx-size=${VLM_CTX_SIZE:-4096}" --vision-option "max-tokens=${VLM_MAX_TOKENS:-1024}"
     [ -n "${LLAMA_MTMD_CLI:-}" ] && printf '%s\n' --vision-option "binary=$LLAMA_MTMD_CLI"
     [ -n "${FFMPEG:-}" ] && printf '%s\n' --vision-option "ffmpeg=$FFMPEG"
     [ -n "$threads" ] && printf '%s\n' --vision-option "threads=$threads"
@@ -151,7 +167,8 @@ if [ "$dry" -eq 0 ]; then
     echo "llama-mtmd-cli: $("${LLAMA_MTMD_CLI:-llama-mtmd-cli}" --version 2>&1 | grep -m1 -i version || true)"
     echo "whisper-cli: $(command -v "${WHISPER_CLI:-whisper-cli}" || echo missing)"
     echo "models: $(basename "$whisper_model") $(basename "$vlm_model") $(basename "$vlm_mmproj") $(basename "$llm_model")"
-    echo "experiments: $experiments; speed: $speed; segment errors: $segment_errors; vod rerun: $vod"
+    echo "experiments: $experiments; pacing: $pacing; speed: $speed; segment errors: $segment_errors; vod rerun: $vod"
+    echo "vision: ctx-size ${VLM_CTX_SIZE:-4096}, max-tokens ${VLM_MAX_TOKENS:-1024}; reasoner: ctx-size ${LLM_CTX_SIZE:-8192}"
   } >"$run_dir/environment.txt"
 fi
 
@@ -159,7 +176,7 @@ status=0
 old_ifs="$IFS"; IFS=','
 for exp in $experiments; do
   IFS="$old_ifs"
-  run_one "$exp" live "$run_dir/live" || { status=1; echo "m08-run: $exp live failed; continuing" >&2; }
+  run_one "$exp" "$pacing" "$run_dir/$pacing_dir" || { status=1; echo "m08-run: $exp $pacing failed; continuing" >&2; }
   IFS=','
 done
 IFS="$old_ifs"
