@@ -191,7 +191,7 @@ the observation provenance contract has no prompt field.
 | `ffmpeg` | `ffmpeg` on `PATH` | frame extraction |
 | `threads` | llama.cpp default | `-t` |
 | `gpu-layers` | llama.cpp default | `-ngl` |
-| `max-tokens` | `512` | answer token limit (`-n`) |
+| `max-tokens` | `512` | answer token limit (`-n`); the M08 runbook passes `1024` |
 | `max-edge` | `768` | longest frame edge in pixels |
 | `ctx-size` | llama.cpp default | context size (`-c`); M08 pins `4096` |
 
@@ -354,7 +354,10 @@ are:
 
 - `scripts/m08-run.sh`: the runbook. It runs E01, E02, E04, E05 and E03 with
   Live pacing, then reruns E04 with instant (VOD) pacing and diffs the two raw
-  outputs (the H4 check). Everything goes to
+  outputs (the H4 check). `--pacing instant` runs the experiments with instant
+  pacing instead, under `vod/`, without the separate rerun. The vision answer
+  limit is `VLM_MAX_TOKENS` (default 1024; 512 truncates frames with many
+  detections). Everything goes to
   `~/context-video-runs/m08/<run-id>/` (or `--runs-dir`, default
   `$CONTEXT_VIDEO_RUNS_DIR`), and a directory inside the repository is refused.
 - `scripts/m08-record-clip.sh`: records one fixed 60–120 s clip from a YouTube
@@ -427,8 +430,9 @@ cp dataset/templates/poc-golden-v1.0.json dataset/manifests/     # paste the pri
 # write dataset/ground-truth/poc-golden/<test-case-id>.json per the guidelines
 go run ./cmd/harness --config configs/experiments/multimodal-5s.yaml \
   --manifest manifests/poc-golden-v1.0.json --output /tmp/check --pipeline validation-only
-scripts/m08-run.sh --run-id calibrate --experiments E04 --no-vod   # time one experiment first
-scripts/m08-run.sh --run-id 2026-10-m5-7b
+# On AC power; caffeinate keeps macOS from sleeping, which would distort latency.
+caffeinate -dimsu scripts/m08-run.sh --run-id calibrate --experiments E04 --no-vod   # time one experiment first
+caffeinate -dimsu scripts/m08-run.sh --run-id 2026-10-m5-7b
 ```
 
 Peak memory is about 7 GB (the vision model plus projector); the three
