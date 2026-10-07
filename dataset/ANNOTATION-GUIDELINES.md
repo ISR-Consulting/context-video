@@ -4,6 +4,11 @@
 follows these rules. Changing a rule that alters labels requires a new
 guidelines version and a new dataset version.
 
+v1.0 was clarified on 2026-10-05, before any ground truth was committed: the
+"original spelling" rule did not say which language a country name takes, so
+countries and national teams are now explicitly written in English (see
+Labels). No existing label changed, so the version stays 1.0.
+
 ## Clips
 
 - One clip per test case, 60–120 s, `LOCAL` media under `dataset/media/`
@@ -27,8 +32,16 @@ guidelines version and a new dataset version.
 ## Labels
 
 - Language: **English**, **lowercase snake_case** for topics, objects and
-  brands (`football`, `football_jersey`, `olive_oil_bottle`). Proper names
-  keep their original spelling and case (`Palmeiras`, `Maracanã`).
+  brands (`football`, `football_jersey`, `olive_oil_bottle`, `adidas`). A
+  brand label follows the brand's own name, never a translation
+  (`volkswagen`, `zalando`).
+- Entity values are proper names:
+  - **countries and national teams** use their **English** name (`Germany`,
+    `Serbia`), whatever the language of the commentary or the on-screen text
+    (not `Alemanha`, `Sérvia`, `Deutschland` or `GER`);
+  - **all other proper names** (people, clubs, places, organizations, events)
+    keep their original spelling and case (`Palmeiras`, `Maracanã`,
+    `Florian Wirtz`).
 - Entities are `{"type", "value"}` with `type` from this closed list:
 
   | type | use for |
