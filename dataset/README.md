@@ -50,22 +50,28 @@ and fixture references are resolved only through its supplied `fs.FS`.
 
 ## Recording and annotating (M08)
 
-The POC Golden Dataset `poc-golden` v1.0 is not committed yet: its clips and
-annotations come from the dataset owner.
+The POC Golden Dataset `poc-golden` v1.0 annotations are committed under
+`manifests/poc-golden-v1.0.json` and `ground-truth/poc-golden/`. Media stays
+git-ignored. The committed manifest uses `CONTROLLED_SOURCE` so
+`LoadDataset` works without media bytes; convert entries to `LOCAL` with the
+operator Mac `sha256` when re-running the harness on the clips.
 
 1. Record each clip with `scripts/m08-record-clip.sh` (fixed 60–120 s, one
    video and one audio stream, into `dataset/media/`, which stays git-ignored).
    It prints the manifest `testCases` entry with the clip's `sha256` and
    `durationMs`.
-2. Copy `templates/poc-golden-v1.0.json` to `manifests/` and add the entries.
+2. Keep or update `manifests/poc-golden-v1.0.json` (switch to `LOCAL` when
+   digests are known).
 3. Write `ground-truth/poc-golden/<test-case-id>.json` from
    `templates/ground-truth.json`, following
    [`ANNOTATION-GUIDELINES.md`](ANNOTATION-GUIDELINES.md) v1.0.
 4. Check it: `go run ./cmd/harness --pipeline validation-only --config
    configs/experiments/multimodal-5s.yaml --manifest
-   manifests/poc-golden-v1.0.json --output /tmp/check`.
+   manifests/poc-golden-v1.0.json --output /tmp/check`
+   (requires `LOCAL` media present, or keep `CONTROLLED_SOURCE`).
 
-Manifests and ground truth may be committed; media may not.
+Manifests and ground truth may be committed; media may not. Matching and
+scoring policy for M09 is in `internal/evaluation/quality` (lexical, overlap).
 
 ## Loading
 
