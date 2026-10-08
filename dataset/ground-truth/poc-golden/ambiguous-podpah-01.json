@@ -1,0 +1,141 @@
+{
+  "schemaVersion": "1.0",
+  "testCaseId": "ambiguous-podpah-01",
+  "content": {
+    "contentId": "yt-a8cqnbtbcdu-20261004t205858z",
+    "contentType": "VOD"
+  },
+  "annotations": [
+    {
+      "annotationId": "ambiguous-podpah-01-0001",
+      "window": {
+        "startMs": 0,
+        "endMs": 30000
+      },
+      "expected": {
+        "required": {
+          "topics": [
+            "podcast",
+            "game_show",
+            "challenge",
+            "quiz"
+          ],
+          "objects": [
+            "door",
+            "table",
+            "buzzer",
+            "wig",
+            "hulk_costume",
+            "swim_briefs"
+          ],
+          "brands": [
+            "podpah"
+          ]
+        },
+        "optional": {
+          "entities": [
+            {
+              "type": "PERSON",
+              "value": "coiceio"
+            }
+          ],
+          "topics": [
+            "humor"
+          ],
+          "objects": [
+            "slime",
+            "apron",
+            "cap",
+            "jeans",
+            "t_shirt",
+            "sneakers"
+          ]
+        },
+        "forbidden": {
+          "topics": [
+            "football",
+            "cooking"
+          ]
+        }
+      },
+      "ambiguityNote": "coiceio: name heard in the quiz question (how many times this person has been on Podpah); probably a guest, spelling uncertain. 'game_show' renders the buzzer table 'like Passa ou Repassa'. 'humor' is implied by the disgust gag. 'slime' renders the brown goo. Apron, cap, jeans, T-shirt and sneakers are stated but incidental clothing details.",
+      "annotatorNote": "Very colourful set with doors numbered 1 to 4 behind; a table with a buzzer for a who-hits-first game, like Passa ou Repassa. Men in costume: one in pink trousers and a blonde wig, one dressed as the Hulk with a black apron, one in jeans, T-shirt, sneakers and cap, one in red swim briefs smeared with brown goo, one all in black. The Hulk challenges another to lick the armpit of the man in swim briefs; the others make disgusted faces. At the desk they ask how many times 'coiceio' has been on the Podpah podcast; one answers 14 as a guess; the right answer is 9."
+    },
+    {
+      "annotationId": "ambiguous-podpah-01-0002",
+      "window": {
+        "startMs": 30000,
+        "endMs": 60000
+      },
+      "expected": {
+        "required": {
+          "topics": [
+            "game_show",
+            "challenge",
+            "boxing"
+          ],
+          "objects": [
+            "roulette_wheel"
+          ]
+        },
+        "optional": {
+          "topics": [
+            "podcast",
+            "humor"
+          ],
+          "objects": [
+            "boxing_ring",
+            "boxing_gloves"
+          ],
+          "brands": [
+            "podpah"
+          ]
+        },
+        "forbidden": {
+          "topics": [
+            "football",
+            "cooking"
+          ]
+        }
+      },
+      "ambiguityNote": "'boxing_ring' renders 'a limited space like a ring', not an actual ring. Gloves, the Podpah brand and the podcast topic are probably present but not stated. 'roulette_wheel' renders the 'blackjack-style roulette'.",
+      "annotatorNote": "A blackjack-style roulette is spun and lands on a two-minute challenge, 'without losing the friendship'. The boxing challenge starts: they hit each other inside a marked-off space like a ring."
+    },
+    {
+      "annotationId": "ambiguous-podpah-01-0003",
+      "window": {
+        "startMs": 60000,
+        "endMs": 120000
+      },
+      "expected": {
+        "required": {
+          "topics": [
+            "boxing"
+          ]
+        },
+        "optional": {
+          "topics": [
+            "challenge",
+            "game_show",
+            "podcast"
+          ],
+          "objects": [
+            "boxing_ring",
+            "boxing_gloves"
+          ],
+          "brands": [
+            "podpah"
+          ]
+        },
+        "forbidden": {
+          "topics": [
+            "football",
+            "cooking"
+          ]
+        }
+      },
+      "ambiguityNote": "The annotator only says the boxing fight continues; the challenge, game-show and podcast context, the ring-like space, gloves and the Podpah brand carry over from the previous window but are not restated.",
+      "annotatorNote": "Only the boxing fight."
+    }
+  ]
+}
