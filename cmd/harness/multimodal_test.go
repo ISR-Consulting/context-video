@@ -276,7 +276,7 @@ func TestRunMultimodalDefaultRegistriesRejectMissingModel(t *testing.T) {
 
 func TestCommittedExperimentsSelectRegisteredReasoner(t *testing.T) {
 	paths, err := filepath.Glob(filepath.Join("..", "..", "configs", "experiments", "*.yaml"))
-	if err != nil || len(paths) != 5 {
+	if err != nil || len(paths) < 5 {
 		t.Fatalf("configs: %v %v", paths, err)
 	}
 	available := contextproviders.Default().Names()
@@ -285,7 +285,13 @@ func TestCommittedExperimentsSelectRegisteredReasoner(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if cfg.FusionProvider != "llama-cpp" || !slices.Contains(available, cfg.FusionProvider) {
+		want := "llama-cpp"
+		switch cfg.ExperimentID {
+		case "E01", "E02", "E03", "E04", "E05":
+		default:
+			want = "openai-reasoner"
+		}
+		if cfg.FusionProvider != want || !slices.Contains(available, cfg.FusionProvider) {
 			t.Errorf("%s: fusion.provider %q; registered: %v", path, cfg.FusionProvider, available)
 		}
 	}

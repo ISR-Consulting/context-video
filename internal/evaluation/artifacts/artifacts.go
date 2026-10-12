@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/ISR-Consulting/context-video/internal/evaluation/harness"
@@ -261,6 +262,8 @@ type OptionValue struct {
 // DescribeOptions sanitizes opts: a value naming an existing regular file
 // (a model, projector or binary) becomes its base name and SHA-256, and a
 // value that looks like a path but does not exist keeps only its base name.
+// Secret option keys such as api-key are recorded as "***" so run manifests
+// never persist credentials.
 func DescribeOptions(opts map[string]string) (map[string]OptionValue, error) {
 	if len(opts) == 0 {
 		return nil, nil
@@ -272,6 +275,10 @@ func DescribeOptions(opts map[string]string) (map[string]OptionValue, error) {
 	slices.Sort(keys)
 	out := make(map[string]OptionValue, len(opts))
 	for _, k := range keys {
+		if isSecretOption(k) {
+			out[k] = OptionValue{Value: "***"}
+			continue
+		}
 		v := opts[k]
 		info, err := os.Stat(v)
 		switch {
@@ -288,6 +295,15 @@ func DescribeOptions(opts map[string]string) (map[string]OptionValue, error) {
 		}
 	}
 	return out, nil
+}
+
+func isSecretOption(key string) bool {
+	switch strings.ToLower(strings.TrimSpace(key)) {
+	case "api-key", "api_key", "apikey", "token", "password", "secret":
+		return true
+	default:
+		return false
+	}
 }
 
 func fileSHA256(path string) (string, error) {

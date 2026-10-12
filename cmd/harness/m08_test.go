@@ -27,7 +27,7 @@ var wantSampling = map[string]string{"E02": "uniform:2", "E03": "uniform:1", "E0
 
 func TestCommittedExperimentsSelectRegisteredPerceptionProviders(t *testing.T) {
 	paths, err := filepath.Glob(filepath.Join("..", "..", "configs", "experiments", "*.yaml"))
-	if err != nil || len(paths) != 5 {
+	if err != nil || len(paths) < 5 {
 		t.Fatalf("committed configs: %v %v", paths, err)
 	}
 	audioNames, visionNames := providers.Default().Names(), visionproviders.Default().Names()
@@ -36,18 +36,33 @@ func TestCommittedExperimentsSelectRegisteredPerceptionProviders(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if cfg.Audio.Enabled != (cfg.ExperimentID != "E02") || cfg.Vision.Enabled != (cfg.ExperimentID != "E01") {
-			t.Errorf("%s: modalities audio=%t vision=%t", path, cfg.Audio.Enabled, cfg.Vision.Enabled)
+		local := cfg.ExperimentID == "E01" || cfg.ExperimentID == "E02" || cfg.ExperimentID == "E03" || cfg.ExperimentID == "E04" || cfg.ExperimentID == "E05"
+		if local {
+			if cfg.Audio.Enabled != (cfg.ExperimentID != "E02") || cfg.Vision.Enabled != (cfg.ExperimentID != "E01") {
+				t.Errorf("%s: modalities audio=%t vision=%t", path, cfg.Audio.Enabled, cfg.Vision.Enabled)
+			}
 		}
-		if cfg.Audio.Enabled && (cfg.Audio.Provider != "whisper-cpp" || !slices.Contains(audioNames, cfg.Audio.Provider)) {
-			t.Errorf("%s: audio.provider %q; registered: %v", path, cfg.Audio.Provider, audioNames)
+		if cfg.Audio.Enabled {
+			wantAudio := "whisper-cpp"
+			if !local {
+				wantAudio = "openai-transcribe"
+			}
+			if cfg.Audio.Provider != wantAudio || !slices.Contains(audioNames, cfg.Audio.Provider) {
+				t.Errorf("%s: audio.provider %q; registered: %v", path, cfg.Audio.Provider, audioNames)
+			}
 		}
 		if cfg.Vision.Enabled {
-			if cfg.Vision.Provider != "llama-mtmd" || !slices.Contains(visionNames, cfg.Vision.Provider) {
+			wantVision := "llama-mtmd"
+			if !local {
+				wantVision = "openai-vision"
+			}
+			if cfg.Vision.Provider != wantVision || !slices.Contains(visionNames, cfg.Vision.Provider) {
 				t.Errorf("%s: vision.provider %q; registered: %v", path, cfg.Vision.Provider, visionNames)
 			}
-			if cfg.Vision.Sampling != wantSampling[cfg.ExperimentID] {
-				t.Errorf("%s: vision.sampling %q, want %q", path, cfg.Vision.Sampling, wantSampling[cfg.ExperimentID])
+			if local {
+				if cfg.Vision.Sampling != wantSampling[cfg.ExperimentID] {
+					t.Errorf("%s: vision.sampling %q, want %q", path, cfg.Vision.Sampling, wantSampling[cfg.ExperimentID])
+				}
 			}
 			if _, err := vision.ParseSampling(cfg.Vision.Sampling); err != nil {
 				t.Errorf("%s: %v", path, err)

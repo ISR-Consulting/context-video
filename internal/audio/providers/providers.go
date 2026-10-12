@@ -5,6 +5,7 @@ package providers
 
 import (
 	"github.com/ISR-Consulting/context-video/internal/audio"
+	"github.com/ISR-Consulting/context-video/internal/audio/openai"
 	"github.com/ISR-Consulting/context-video/internal/audio/whispercpp"
 )
 
@@ -12,6 +13,9 @@ import (
 func Default() *audio.Registry {
 	r := audio.NewRegistry()
 	if err := r.Register(whispercpp.ProviderName, whispercpp.NewFromOptions); err != nil {
+		panic(err)
+	}
+	if err := r.Register(openai.ProviderName, openai.NewFromOptions); err != nil {
 		panic(err)
 	}
 	return r

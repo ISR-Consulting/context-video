@@ -197,4 +197,18 @@ func TestDescribeOptionsHashesFilesAndDropsPaths(t *testing.T) {
 	if none, err := DescribeOptions(nil); err != nil || none != nil {
 		t.Fatalf("empty options: %v %v", none, err)
 	}
+	secret, err := DescribeOptions(map[string]string{"api-key": "sk-live-secret", "model": "gpt-4o-mini"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if secret["api-key"] != (OptionValue{Value: "***"}) {
+		t.Fatalf("api-key not redacted: %+v", secret["api-key"])
+	}
+	raw, err := json.Marshal(secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "sk-live") {
+		t.Fatalf("secret leaked: %s", raw)
+	}
 }

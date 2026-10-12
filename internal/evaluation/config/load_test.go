@@ -47,6 +47,16 @@ func TestCommittedExperimentConfigsLoadUnchanged(t *testing.T) {
 			file: "multimodal-10s.yaml",
 			want: multimodal("E05", "multimodal-10s", "10s", 10*time.Second, "uniform:4"),
 		},
+		{
+			file: "multimodal-5s-openai.yaml",
+			want: Config{
+				ExperimentID: "E04-openai", ExperimentName: "multimodal-5s-openai",
+				IngestionMode: IngestionLiveSimulation, WindowSizeRaw: "5s", WindowSize: 5 * time.Second,
+				Audio:          AudioConfig{Enabled: true, Provider: "openai-transcribe"},
+				Vision:         VisionConfig{Enabled: true, Provider: "openai-vision", Sampling: "uniform:2"},
+				FusionProvider: "openai-reasoner", ContextEventSelector: "v1", ContextEventSchemaVersion: "1.0",
+			},
+		},
 	}
 	entries, err := os.ReadDir(experimentsDir)
 	if err != nil {
