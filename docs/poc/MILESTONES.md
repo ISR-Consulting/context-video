@@ -89,11 +89,14 @@ Status: complete.
 Fuse temporally aligned observations into ContextEvent v1 with evidence and provenance.
 
 ## M08 — Experiment execution
-Status: in progress. Execution tooling, committed provider/sampling values and
-the VM smoke run are done; the Golden Dataset clips, annotations and the
-canonical E01–E05 runs on the MacBook Pro are pending.
+Status: complete.
 
-Run E01–E05 against the Golden Dataset.
+Run E01–E05 against the Golden Dataset. Canonical Mac run:
+`2026-10-07-m5-7b-v2` at git `899e7ef` (Live E01–E05 + E04 VOD; v2 prompts;
+vision `max-tokens` 1024). Raw artifacts stay outside the repo.
 
 ## M09 — Evaluation report
+Status: in progress.
+
 Compare quality, latency, stability and cost and record architecture findings.
+See [`M09-EVALUATION-REPORT.md`](M09-EVALUATION-REPORT.md).

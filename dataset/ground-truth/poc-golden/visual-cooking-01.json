@@ -1,0 +1,168 @@
+{
+  "schemaVersion": "1.0",
+  "testCaseId": "visual-cooking-01",
+  "content": {
+    "contentId": "yt-fvn-hbuh-t8-20261004t210725z",
+    "contentType": "VOD"
+  },
+  "annotations": [
+    {
+      "annotationId": "visual-cooking-01-0001",
+      "window": {
+        "startMs": 0,
+        "endMs": 30000
+      },
+      "expected": {
+        "required": {
+          "topics": [
+            "cooking"
+          ],
+          "objects": [
+            "carrot",
+            "apron",
+            "glass_jar"
+          ]
+        },
+        "optional": {
+          "topics": [
+            "carrot_cake"
+          ],
+          "objects": [
+            "knife",
+            "cutting_board",
+            "bowl",
+            "sink",
+            "faucet",
+            "flower_vase",
+            "cactus",
+            "tiles",
+            "kitchen_cabinet"
+          ]
+        },
+        "forbidden": {
+          "topics": [
+            "interview"
+          ],
+          "brands": [
+            "bonjour"
+          ]
+        }
+      },
+      "ambiguityNote": "Knife and cutting board are implied by the cutting. The carrot cake topic is implied by the ingredients across the clip. 'Bowl' renders the annotator's two white 'potes'. Sink, faucet, vase, cactus, tiles and cabinet are stated background details, optional because they are incidental. 'Bonjour' on the apron is printed text, not a brand.",
+      "annotatorNote": "A woman cuts carrots: two whole carrots and one being cut; two white bowls and a glass jar. Only her hands and torso are visible at a table. Black-and-white vertically striped apron with 'Bonjour' and a white moustache drawing. Background: white sink cabinet, white flower vase, faucet, white tiles; a small cactus pot on the table. Close-up on the cut carrots. No speech."
+    },
+    {
+      "annotationId": "visual-cooking-01-0002",
+      "window": {
+        "startMs": 30000,
+        "endMs": 60000
+      },
+      "expected": {
+        "required": {
+          "topics": [
+            "cooking"
+          ],
+          "objects": [
+            "blender",
+            "carrot"
+          ]
+        },
+        "optional": {
+          "topics": [
+            "carrot_cake"
+          ],
+          "objects": [
+            "apron"
+          ]
+        },
+        "forbidden": {
+          "topics": [
+            "interview"
+          ],
+          "brands": [
+            "bonjour"
+          ]
+        }
+      },
+      "ambiguityNote": "The carrot cake topic is implied by the ingredients. The apron is probably still visible but not stated.",
+      "annotatorNote": "The woman takes a blender and puts the carrots into it. No speech, only ambient sound."
+    },
+    {
+      "annotationId": "visual-cooking-01-0003",
+      "window": {
+        "startMs": 60000,
+        "endMs": 90000
+      },
+      "expected": {
+        "required": {
+          "topics": [
+            "cooking"
+          ],
+          "objects": [
+            "bowl",
+            "vegetable_oil"
+          ]
+        },
+        "optional": {
+          "topics": [
+            "carrot_cake"
+          ],
+          "objects": [
+            "blender",
+            "bottle",
+            "apron"
+          ]
+        },
+        "forbidden": {
+          "topics": [
+            "interview"
+          ],
+          "brands": [
+            "bonjour"
+          ]
+        }
+      },
+      "ambiguityNote": "'Bowl' renders the annotator's 'recipiente'. The blender, the oil bottle and the apron are probably visible but not stated. The carrot cake topic is implied.",
+      "annotatorNote": "The woman takes a container and pours vegetable oil into it. No speech, only ambient sound."
+    },
+    {
+      "annotationId": "visual-cooking-01-0004",
+      "window": {
+        "startMs": 90000,
+        "endMs": 120000
+      },
+      "expected": {
+        "required": {
+          "topics": [
+            "cooking"
+          ],
+          "objects": [
+            "blender",
+            "vegetable_oil",
+            "egg",
+            "egg_carton"
+          ]
+        },
+        "optional": {
+          "topics": [
+            "carrot_cake",
+            "asmr"
+          ],
+          "objects": [
+            "bowl"
+          ]
+        },
+        "forbidden": {
+          "topics": [
+            "interview"
+          ],
+          "brands": [
+            "bonjour"
+          ]
+        }
+      },
+      "ambiguityNote": "ASMR is implied by the slow nail scraping and the letters A S M R on the eggs, but the annotator does not call the video ASMR. The carrot cake topic is implied by carrots, oil, eggs and the blender.",
+      "annotatorNote": "She pours the oil into the blender and blends, then slowly scrapes her nails on the container, making a small noise. She picks up a green egg carton with white eggs; three eggs have the letters A S M R written on them."
+    }
+  ]
+}

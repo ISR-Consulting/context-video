@@ -1,0 +1,94 @@
+{
+  "schemaVersion": "1.0",
+  "datasetId": "poc-golden",
+  "datasetVersion": "1.0",
+  "name": "POC Golden Dataset",
+  "description": "Four 120 s clips covering POC-SPEC \u00a79 scenarios, annotated per dataset/ANNOTATION-GUIDELINES.md v1.0. Media stays operator-local (gitignored). This committed manifest uses CONTROLLED_SOURCE so LoadDataset works without media bytes; convert each entry to LOCAL with the Mac sha256 when re-running harnesses.",
+  "annotationGuidelinesVersion": "1.0",
+  "testCases": [
+    {
+      "testCaseId": "football-live-01",
+      "scenario": "FOOTBALL_SPORTS_APPAREL",
+      "content": {
+        "contentId": "yt-jjl6thv-obo-20261001t200425z",
+        "contentType": "LIVE"
+      },
+      "media": {
+        "kind": "CONTROLLED_SOURCE",
+        "uri": "controlled://mac-run/2026-10-07-m5-7b-v2/football-live-01",
+        "sha256": "fa0d8b6b4d9212e002e952fe62f74d12e3c8f67a50e29203b80ff412abf11e7e",
+        "durationMs": 120000
+      },
+      "groundTruthPath": "ground-truth/poc-golden/football-live-01.json",
+      "description": "UEFA Nations League football clip (Germany vs Serbia). Media held locally by the operator; committed as CONTROLLED_SOURCE so the repo loads without Globo bytes.",
+      "tags": [
+        "football",
+        "live",
+        "sports-apparel"
+      ]
+    },
+    {
+      "testCaseId": "visual-cooking-01",
+      "scenario": "PREDOMINANTLY_VISUAL",
+      "content": {
+        "contentId": "yt-fvn-hbuh-t8-20261004t210725z",
+        "contentType": "VOD"
+      },
+      "media": {
+        "kind": "CONTROLLED_SOURCE",
+        "uri": "controlled://mac-run/2026-10-07-m5-7b-v2/visual-cooking-01",
+        "sha256": "40783ae41956a35413763db50a8808cc32542f52ef331d94c1007c4c091acc4f",
+        "durationMs": 120000
+      },
+      "groundTruthPath": "ground-truth/poc-golden/visual-cooking-01.json",
+      "description": "Mostly silent cooking / ASMR food-prep clip.",
+      "tags": [
+        "cooking",
+        "visual",
+        "vod"
+      ]
+    },
+    {
+      "testCaseId": "auditory-podcast-01",
+      "scenario": "PREDOMINANTLY_AUDITORY",
+      "content": {
+        "contentId": "yt-rk8htilpfz4-20261004t205131z",
+        "contentType": "VOD"
+      },
+      "media": {
+        "kind": "CONTROLLED_SOURCE",
+        "uri": "controlled://mac-run/2026-10-07-m5-7b-v2/auditory-podcast-01",
+        "sha256": "df7f96be4bdce490fe20b400d9e62b6aa3c4c6cfab1c7c36e8ef20b224dd7e74",
+        "durationMs": 120000
+      },
+      "groundTruthPath": "ground-truth/poc-golden/auditory-podcast-01.json",
+      "description": "Pod Delas studio conversation (faith / health).",
+      "tags": [
+        "podcast",
+        "auditory",
+        "vod"
+      ]
+    },
+    {
+      "testCaseId": "ambiguous-podpah-01",
+      "scenario": "MULTIMODAL_AMBIGUOUS",
+      "content": {
+        "contentId": "yt-a8cqnbtbcdu-20261004t205858z",
+        "contentType": "VOD"
+      },
+      "media": {
+        "kind": "CONTROLLED_SOURCE",
+        "uri": "controlled://mac-run/2026-10-07-m5-7b-v2/ambiguous-podpah-01",
+        "sha256": "d4dd88f81d59bb095994f7a9a5dce8a3d0db88b24cd823f37d390a1ce21731e2",
+        "durationMs": 120000
+      },
+      "groundTruthPath": "ground-truth/poc-golden/ambiguous-podpah-01.json",
+      "description": "Podpah game-show / challenge segment where audio or vision alone is ambiguous.",
+      "tags": [
+        "podcast",
+        "ambiguous",
+        "vod"
+      ]
+    }
+  ]
+}

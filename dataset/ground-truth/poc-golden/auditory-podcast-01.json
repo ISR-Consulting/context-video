@@ -1,0 +1,211 @@
+{
+  "schemaVersion": "1.0",
+  "testCaseId": "auditory-podcast-01",
+  "content": {
+    "contentId": "yt-rk8htilpfz4-20261004t205131z",
+    "contentType": "VOD"
+  },
+  "annotations": [
+    {
+      "annotationId": "auditory-podcast-01-0001",
+      "window": {
+        "startMs": 0,
+        "endMs": 30000
+      },
+      "expected": {
+        "required": {
+          "topics": [
+            "podcast",
+            "conversation"
+          ],
+          "objects": [
+            "beverage_can",
+            "mug",
+            "tablet",
+            "ice_bucket",
+            "notebook",
+            "glasses"
+          ],
+          "brands": [
+            "pod_delas",
+            "fys"
+          ]
+        },
+        "optional": {
+          "entities": [
+            {
+              "type": "ORGANIZATION",
+              "value": "Heineken"
+            }
+          ],
+          "objects": [
+            "microphone",
+            "television",
+            "curtain",
+            "sign"
+          ],
+          "brands": [
+            "apple"
+          ]
+        },
+        "forbidden": {
+          "topics": [
+            "alcohol"
+          ],
+          "brands": [
+            "coca_cola"
+          ]
+        }
+      },
+      "ambiguityNote": "Pod Delas is the podcast's name, shown on the sign, frame and mug, and is labelled as the brand pod_delas. Apple is implied by the iPad. Heineken (FYS maker) is not visible here. The microphone is implied by the podcast setting. The TV is only partly visible ('a corner that looks like a smart TV'). Curtain and sign are stated background details.",
+      "annotatorNote": "Sign 'Pod Delas' in white in front of a red curtain; a red-and-white 'pod delas' picture on the right. A woman in a khaki or brown blazer, white T-shirt and earrings, with dyed brown hair, is talking. On the desk: six FYS Zero cans, glasses, a notebook and a red 'pod delas' mug. A blonde woman in a denim jacket and white shirt laughs. Her desk has an iPad, a red 'pod delas' mug and an ice bucket with FYS Zero cans. Corner of what looks like a smart TV. They are having a conversation."
+    },
+    {
+      "annotationId": "auditory-podcast-01-0002",
+      "window": {
+        "startMs": 30000,
+        "endMs": 60000
+      },
+      "expected": {
+        "required": {
+          "topics": [
+            "podcast",
+            "faith",
+            "health",
+            "anger",
+            "breast_cancer"
+          ],
+          "objects": [
+            "television",
+            "table"
+          ],
+          "brands": [
+            "fys"
+          ]
+        },
+        "optional": {
+          "entities": [
+            {
+              "type": "ORGANIZATION",
+              "value": "Heineken"
+            }
+          ],
+          "objects": [
+            "beverage_can",
+            "mug",
+            "microphone"
+          ],
+          "brands": [
+            "pod_delas"
+          ]
+        },
+        "forbidden": {
+          "topics": [
+            "alcohol"
+          ],
+          "brands": [
+            "coca_cola"
+          ]
+        }
+      },
+      "ambiguityNote": "Heineken: the annotator says FYS is the Heineken group's soft drink; the group is not shown or said in the clip. pod_delas and the desk items are probably still visible but not restated. The microphone is implied.",
+      "annotatorNote": "They keep talking about faith and illness and give advice to people who are ill and without faith. A wide shot shows the whole studio: four TVs showing an FYS ad (the Heineken group's soft drink) and the white table. They go on about illness, anger and breast cancer."
+    },
+    {
+      "annotationId": "auditory-podcast-01-0003",
+      "window": {
+        "startMs": 60000,
+        "endMs": 90000
+      },
+      "expected": {
+        "required": {
+          "topics": [
+            "podcast",
+            "health",
+            "anger",
+            "breast_cancer",
+            "kidney_disease",
+            "liver_disease"
+          ]
+        },
+        "optional": {
+          "topics": [
+            "marriage"
+          ],
+          "objects": [
+            "beverage_can",
+            "mug",
+            "tablet",
+            "ice_bucket",
+            "notebook",
+            "glasses",
+            "curtain",
+            "sign",
+            "television",
+            "table"
+          ],
+          "brands": [
+            "pod_delas",
+            "fys"
+          ]
+        },
+        "forbidden": {
+          "topics": [
+            "alcohol"
+          ],
+          "brands": [
+            "coca_cola"
+          ]
+        }
+      },
+      "ambiguityNote": "The annotator says the scene is unchanged without relisting it, so the set's objects, the FYS and pod_delas brands are optional. 'Marriage' renders the talk about anger at husbands.",
+      "annotatorNote": "They talk about people's problems: anger at husbands, breast cancer, kidney and liver problems, all in the same set as before."
+    },
+    {
+      "annotationId": "auditory-podcast-01-0004",
+      "window": {
+        "startMs": 90000,
+        "endMs": 120000
+      },
+      "expected": {
+        "required": {
+          "topics": [
+            "podcast",
+            "health"
+          ]
+        },
+        "optional": {
+          "topics": [
+            "emotional_wellbeing"
+          ],
+          "objects": [
+            "beverage_can",
+            "mug",
+            "tablet",
+            "ice_bucket",
+            "notebook",
+            "glasses",
+            "curtain",
+            "sign",
+            "television",
+            "table"
+          ],
+          "brands": [
+            "pod_delas",
+            "fys"
+          ]
+        },
+        "forbidden": {
+          "topics": [
+            "alcohol"
+          ],
+          "brands": [
+            "coca_cola"
+          ]
+        }
+      },
+      "ambiguityNote": "'Emotional wellbeing' renders 'what a person keeps in the heart'. The set's objects, the FYS and pod_delas brands are presumed unchanged but not stated.",
+      "annotatorNote": "They keep chatting about health problems as a reflection of how a person lives and what they keep in their heart."
+    }
+  ]
+}

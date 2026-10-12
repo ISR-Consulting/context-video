@@ -1,0 +1,265 @@
+{
+  "schemaVersion": "1.0",
+  "testCaseId": "football-live-01",
+  "content": {
+    "contentId": "yt-jjl6thv-obo-20261001t200425z",
+    "contentType": "LIVE"
+  },
+  "annotations": [
+    {
+      "annotationId": "football-live-01-0001",
+      "window": {
+        "startMs": 0,
+        "endMs": 30000
+      },
+      "expected": {
+        "required": {
+          "entities": [
+            {
+              "type": "SPORTS_TEAM",
+              "value": "Germany"
+            },
+            {
+              "type": "SPORTS_TEAM",
+              "value": "Serbia"
+            },
+            {
+              "type": "PLACE",
+              "value": "Allianz Arena"
+            }
+          ],
+          "topics": [
+            "football",
+            "goal"
+          ],
+          "objects": [
+            "football_jersey",
+            "advertising_board"
+          ],
+          "brands": [
+            "ergo",
+            "adidas",
+            "nike"
+          ]
+        },
+        "optional": {
+          "entities": [
+            {
+              "type": "PERSON",
+              "value": "Babić"
+            },
+            {
+              "type": "EVENT",
+              "value": "UEFA Nations League"
+            }
+          ],
+          "objects": [
+            "ball",
+            "shorts",
+            "socks"
+          ],
+          "brands": [
+            "ge_tv"
+          ]
+        },
+        "forbidden": {
+          "topics": [
+            "basketball",
+            "american_football"
+          ],
+          "objects": [
+            "basketball"
+          ]
+        }
+      },
+      "ambiguityNote": "Babić: the annotator wrote 'bati' for the player the commentary pities; spelling uncertain. UEFA Nations League is the competition but is not mentioned by the annotator. Ball is implied by the play. Shorts and socks are stated but incidental kit details. ge_tv is the broadcaster's on-screen watermark, not in-content sponsorship, so it is optional and never forbidden.",
+      "annotatorNote": "Commentary over a goal replay: the lead is extended at the Allianz Arena, a well-weighted pass and first touch, 'coitado do' a Serbian player; score 2-0 to Germany. One team in blue shirts and shorts, the other in white shirts, black shorts and white socks. Ergo advertising boards; Germany's shirt sponsor adidas, Serbia's Nike."
+    },
+    {
+      "annotationId": "football-live-01-0002",
+      "window": {
+        "startMs": 30000,
+        "endMs": 60000
+      },
+      "expected": {
+        "required": {
+          "entities": [
+            {
+              "type": "SPORTS_TEAM",
+              "value": "Germany"
+            },
+            {
+              "type": "SPORTS_TEAM",
+              "value": "Serbia"
+            },
+            {
+              "type": "PERSON",
+              "value": "Scherhant"
+            }
+          ],
+          "topics": [
+            "football"
+          ],
+          "objects": [
+            "football_jersey",
+            "advertising_board",
+            "goal"
+          ],
+          "brands": [
+            "bitvavo"
+          ]
+        },
+        "optional": {
+          "entities": [
+            {
+              "type": "EVENT",
+              "value": "UEFA Nations League"
+            }
+          ],
+          "objects": [
+            "ball"
+          ],
+          "brands": [
+            "adidas",
+            "nike",
+            "ergo",
+            "ge_tv"
+          ]
+        },
+        "forbidden": {
+          "topics": [
+            "basketball",
+            "american_football"
+          ],
+          "objects": [
+            "basketball"
+          ]
+        }
+      },
+      "ambiguityNote": "adidas, Nike and Ergo were stated for the previous window and are probably still visible. UEFA Nations League is not mentioned. Ball is implied. ge_tv is the broadcaster's on-screen watermark, not in-content sponsorship, so it is optional and never forbidden.",
+      "annotatorNote": "Players exchange passes until a Germany shot on goal saved by Serbia's goalkeeper. Germany's number 9 shirt, Scherhant, is clearly shown; replay of the shot with a Bitvavo board behind the goal."
+    },
+    {
+      "annotationId": "football-live-01-0003",
+      "window": {
+        "startMs": 60000,
+        "endMs": 90000
+      },
+      "expected": {
+        "required": {
+          "entities": [
+            {
+              "type": "SPORTS_TEAM",
+              "value": "Germany"
+            }
+          ],
+          "topics": [
+            "football",
+            "corner_kick"
+          ],
+          "objects": [
+            "football_jersey",
+            "ball"
+          ],
+          "brands": [
+            "adidas"
+          ]
+        },
+        "optional": {
+          "entities": [
+            {
+              "type": "SPORTS_TEAM",
+              "value": "Serbia"
+            },
+            {
+              "type": "PERSON",
+              "value": "Mittelstädt"
+            },
+            {
+              "type": "EVENT",
+              "value": "UEFA Nations League"
+            }
+          ],
+          "brands": [
+            "nike",
+            "bitvavo",
+            "ergo",
+            "ge_tv"
+          ]
+        },
+        "forbidden": {
+          "topics": [
+            "basketball",
+            "american_football"
+          ],
+          "objects": [
+            "basketball"
+          ]
+        }
+      },
+      "ambiguityNote": "Mittelstädt: the shirt reads MITTELSTADT (number 18); the original spelling is assumed to be Mittelstädt. Serbia and the other sponsors are probably visible but not stated. Germany is implied by the corner following Germany's saved shot. ge_tv is the broadcaster's on-screen watermark, not in-content sponsorship, so it is optional and never forbidden.",
+      "annotatorNote": "After the save, corner kick. The player who gave the assist goes to take it; his shirt shows number 18, MITTELSTADT and the adidas sponsor. He places the ball; the other players wait in the box."
+    },
+    {
+      "annotationId": "football-live-01-0004",
+      "window": {
+        "startMs": 90000,
+        "endMs": 120000
+      },
+      "expected": {
+        "required": {
+          "entities": [
+            {
+              "type": "SPORTS_TEAM",
+              "value": "Germany"
+            }
+          ],
+          "topics": [
+            "football",
+            "corner_kick"
+          ],
+          "objects": [
+            "advertising_board",
+            "flag"
+          ],
+          "brands": [
+            "bitvavo"
+          ]
+        },
+        "optional": {
+          "entities": [
+            {
+              "type": "SPORTS_TEAM",
+              "value": "Serbia"
+            },
+            {
+              "type": "EVENT",
+              "value": "UEFA Nations League"
+            }
+          ],
+          "objects": [
+            "ball",
+            "goal",
+            "football_jersey"
+          ],
+          "brands": [
+            "adidas",
+            "nike",
+            "ge_tv"
+          ]
+        },
+        "forbidden": {
+          "topics": [
+            "basketball",
+            "american_football"
+          ],
+          "objects": [
+            "basketball"
+          ]
+        }
+      },
+      "ambiguityNote": "Serbia, the ball, the goal, shirts and kit sponsors are implied by the corner play but not stated. UEFA Nations League is not mentioned. ge_tv is the broadcaster's on-screen watermark, not in-content sponsorship, so it is optional and never forbidden.",
+      "annotatorNote": "The corner is taken: a Germany player heads it at the near post, it falls to another Germany player at the far post who shoots wide. Players in the box, a Bitvavo board and the crowd with three German flags in the background."
+    }
+  ]
+}
