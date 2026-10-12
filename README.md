@@ -98,7 +98,9 @@ harness selects one through `audio.provider` and passes adapter settings
 opaquely with repeatable `--audio-option key=value` flags.
 
 The committed E01 and E03–E05 configurations select `audio.provider:
-whisper-cpp`, the only registered adapter.
+whisper-cpp`. An additive OpenAI adapter is also registered as
+`openai-transcribe` (see below); `configs/experiments/multimodal-5s-openai.yaml`
+selects the cheap OpenAI stack.
 
 ### whisper.cpp (`whisper-cpp`)
 
@@ -143,6 +145,23 @@ go test -tags integration -run Integration -v ./internal/audio/whispercpp
 Set `CONTEXT_VIDEO_WHISPER_AUDIO` to a local speech file to transcribe real
 speech instead of generated silence.
 
+### OpenAI transcriptions (`openai-transcribe`)
+
+Additive cloud STT via OpenAI `/v1/audio/transcriptions`. ffmpeg still extracts
+the window to 16 kHz mono WAV (file protocol only); the WAV is uploaded as
+multipart form data. Native OpenAI JSON is mapped to `audio.Transcription`
+only. Default model is `gpt-4o-mini-transcribe`. The API key comes from env
+`OPENAI_API_KEY` (preferred) or option `api-key` (redacted in run manifests).
+
+| Option | Default | Meaning |
+|---|---|---|
+| `model` | `gpt-4o-mini-transcribe` | OpenAI transcription model id |
+| `api-key` | env `OPENAI_API_KEY` | bearer token (do not commit) |
+| `base-url` | `https://api.openai.com/v1` | API root override |
+| `timeout` | `60s` | HTTP client timeout |
+| `language` | unset | optional BCP-47 / ISO language hint |
+| `ffmpeg` | `ffmpeg` on `PATH` | extraction tool |
+
 ## Visual observations
 
 `internal/vision` is the vendor-neutral visual port. A `Sampler` picks frame
@@ -162,7 +181,7 @@ window. For example `uniform:2` on `0-5000` samples 1250 and 3750 ms.
 Scene-change selection is not implemented. The committed E02–E05
 configurations select `vision.provider: llama-mtmd` with sampling chosen for a
 roughly constant frame density: E02 and E04 `uniform:2`, E03 `uniform:1`, E05
-`uniform:4`.
+`uniform:4`. `openai-vision` is also registered for the cheap OpenAI stack.
 
 ### llama.cpp multimodal (`llama-mtmd`)
 
@@ -233,6 +252,26 @@ CONTEXT_VIDEO_VLM_MMPROJ=$HOME/models/mmproj-Qwen2.5-VL-7B-Instruct-f16.gguf \
 go test -tags integration -run Integration -v ./internal/vision/llamamtmd
 ```
 
+### OpenAI vision (`openai-vision`)
+
+Additive cloud VLM via OpenAI Chat Completions. ffmpeg extracts one JPEG per
+frame; the image is sent as a data URL with `detail` default `low`. The
+versioned prompt `vision-frame-v2` (same label rules as llama-mtmd) plus a
+JSON-schema response format drive the answer, which is parsed strictly onto
+`vision.Frame`. Default model is `gpt-4o-mini`. Auth: `OPENAI_API_KEY` or
+`api-key`.
+
+| Option | Default | Meaning |
+|---|---|---|
+| `model` | `gpt-4o-mini` | OpenAI chat model id |
+| `api-key` | env `OPENAI_API_KEY` | bearer token (do not commit) |
+| `base-url` | `https://api.openai.com/v1` | API root override |
+| `timeout` | `60s` | HTTP client timeout |
+| `detail` | `low` | image detail: `low`, `high`, or `auto` |
+| `max-tokens` | `1024` | answer token limit |
+| `max-edge` | `768` | longest extracted frame edge in pixels |
+| `ffmpeg` | `ffmpeg` on `PATH` | frame extraction |
+
 ## Multimodal context reasoning
 
 `internal/context` is the vendor-neutral reasoning core
@@ -283,6 +322,8 @@ with a 7B text model: **Qwen2.5-7B-Instruct Q4_K_M** (for example
 runtime `--context-option model=…`, not part of the configuration; only its
 file name reaches provenance. Their audio and vision providers and sampling
 are set too (see above), so the committed files run as they are.
+`openai-reasoner` is also registered; see
+`configs/experiments/multimodal-5s-openai.yaml`.
 
 ### llama.cpp text model (`llama-cpp`)
 
@@ -358,6 +399,41 @@ go test -tags integration -run Integration -v ./internal/context/llamacpp
 ```
 
 `CONTEXT_VIDEO_LLM_BINARY` overrides the `llama-completion` binary.
+
+### OpenAI reasoner (`openai-reasoner`)
+
+Additive cloud reasoner via OpenAI Chat Completions. Uses the same
+`context-reasoning-v2` system prompt, evidence document and label/entity rules
+as llama-cpp, with a per-window JSON-schema `response_format`. Answers map to
+provider-neutral Candidates (prompt version recorded in provenance). Default
+model is `gpt-4o-mini`. Auth: `OPENAI_API_KEY` or `api-key`.
+
+| Option | Default | Meaning |
+|---|---|---|
+| `model` | `gpt-4o-mini` | OpenAI chat model id |
+| `api-key` | env `OPENAI_API_KEY` | bearer token (do not commit) |
+| `base-url` | `https://api.openai.com/v1` | API root override |
+| `timeout` | `60s` | HTTP client timeout |
+| `max-tokens` | `1024` | answer token limit |
+
+Example E04-like cheap stack (no API key in the YAML; export the env var):
+
+```bash
+export OPENAI_API_KEY=sk-...   # never commit
+go run ./cmd/harness \
+  --config configs/experiments/multimodal-5s-openai.yaml \
+  --manifest manifests/<dataset-id>-v<dataset-version>.json \
+  --dataset-root dataset \
+  --output /tmp/results \
+  --pipeline multimodal \
+  --audio-option language=pt \
+  --vision-option detail=low
+```
+
+Optional overrides: `--audio-option model=gpt-4o-mini-transcribe`,
+`--vision-option model=gpt-4o-mini`, `--context-option model=gpt-4o-mini`,
+`--*-option base-url=…`, `--*-option timeout=120s`. Local whisper-cpp /
+llama-mtmd / llama-cpp adapters remain registered and unchanged.
 
 ## M08 experiment execution
 

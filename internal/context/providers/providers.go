@@ -7,12 +7,16 @@ package providers
 import (
 	contextcore "github.com/ISR-Consulting/context-video/internal/context"
 	"github.com/ISR-Consulting/context-video/internal/context/llamacpp"
+	"github.com/ISR-Consulting/context-video/internal/context/openai"
 )
 
 // Default returns a new registry holding every built-in reasoning adapter.
 func Default() *contextcore.Registry {
 	r := contextcore.NewRegistry()
 	if err := r.Register(llamacpp.ProviderName, llamacpp.NewFromOptions); err != nil {
+		panic(err)
+	}
+	if err := r.Register(openai.ProviderName, openai.NewFromOptions); err != nil {
 		panic(err)
 	}
 	return r

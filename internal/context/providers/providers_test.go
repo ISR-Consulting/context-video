@@ -6,17 +6,23 @@ import (
 
 	contextcore "github.com/ISR-Consulting/context-video/internal/context"
 	"github.com/ISR-Consulting/context-video/internal/context/llamacpp"
+	"github.com/ISR-Consulting/context-video/internal/context/openai"
 )
 
-func TestDefaultRegistersLlamaCpp(t *testing.T) {
+func TestDefaultRegistersBuiltInAdapters(t *testing.T) {
 	r := Default()
-	if !reflect.DeepEqual(r.Names(), []string{llamacpp.ProviderName}) {
-		t.Fatal(r.Names())
+	if got := r.Names(); !reflect.DeepEqual(got, []string{llamacpp.ProviderName, openai.ProviderName}) {
+		t.Fatalf("names: %v", got)
 	}
 	if _, err := r.New(llamacpp.ProviderName, contextcore.Options{"model": "/models/m.gguf"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := r.New(llamacpp.ProviderName, nil); err == nil {
-		t.Fatal("missing model accepted")
+	t.Setenv("OPENAI_API_KEY", "test")
+	oai, err := r.New(openai.ProviderName, contextcore.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := oai.(*openai.Adapter); !ok {
+		t.Fatalf("openai: %T", oai)
 	}
 }
