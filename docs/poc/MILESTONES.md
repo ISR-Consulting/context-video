@@ -96,7 +96,12 @@ Run E01–E05 against the Golden Dataset. Canonical Mac run:
 vision `max-tokens` 1024). Raw artifacts stay outside the repo.
 
 ## M09 — Evaluation report
-Status: in progress.
+Status: complete.
 
 Compare quality, latency, stability and cost and record architecture findings.
 See [`M09-EVALUATION-REPORT.md`](M09-EVALUATION-REPORT.md).
+
+POC closeout (option A): monetary cost was out of scope for the canonical run
+(`costPerVideoHour` not measured; `--cost-per-hour` unused). RTF and latency in
+the evaluation report stand as the cost proxy. Optional cost-flag re-run is
+post-POC.
