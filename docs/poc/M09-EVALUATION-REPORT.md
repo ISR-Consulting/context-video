@@ -58,7 +58,7 @@ Notes (ADR-008 / M08 C4):
 
 - Schema and evidence ratios are **1.0 by construction** for a completed harness run (invalid objects abort the segment; emitted objects always validated).
 - Stability is **lexical** Jaccard of adjacent windows (no synonym fold). Low values partly reflect label churn (`podpah` vs `podpah_tv`, brand spelling variants), not only semantic oscillation.
-- **Cost:** `costPerVideoHour` is **absent** — the run did not pass `--cost-per-hour`. RTF is the cost proxy recorded in summaries.
+- **Cost:** `costPerVideoHour` is **absent** — the run did not pass `--cost-per-hour`. RTF is the cost proxy recorded in summaries. **POC closeout (option A):** monetary cost was not measured; the POC accepts RTF/latency as the cost proxy. An optional future re-run with `--cost-per-hour` is post-POC.
 
 ## 4. Segment failures (stability of the pipeline)
 
@@ -131,7 +131,7 @@ A **minimal offline lexical scorer** is implemented in `internal/evaluation/qual
 
 | Item | Status |
 |---|---|
-| `costPerVideoHour` | Absent — supply `--cost-per-hour` on a future run or leave RTF-only. |
+| `costPerVideoHour` | **Closed (option A)** — not measured (`--cost-per-hour` unused). POC accepts RTF/latency as cost proxy; optional cost-flag re-run is post-POC. |
 | Synonym / near-match policy | Deferred; lexical scorer shipped. |
 | LOCAL media digests in manifest | Operator Mac digests not in store; committed as `CONTROLLED_SOURCE`. Paste LOCAL sha256s when available. |
 | Product quality / latency SLAs | Still TBD in POC-SPEC §13 — not treated as SLAs. |
@@ -145,3 +145,8 @@ A **minimal offline lexical scorer** is implemented in `internal/evaluation/qual
 - `internal/evaluation/quality` lexical overlap scorer + tests.
 
 Not delivered: synonym scorer, cost figures, committed raw run dump, schema changes.
+
+## 11. POC closeout
+
+**Decision: option A (cost deferred).** Canonical run `2026-10-07-m5-7b-v2` did not pass `--cost-per-hour`, so `costPerVideoHour` was never populated. M09 is marked complete in `MILESTONES.md` with RTF and latency as the accepted cost proxy. Measuring monetary cost (re-run with `--cost-per-hour`) is optional post-POC work, not a POC blocker.
+
